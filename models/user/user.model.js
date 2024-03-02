@@ -61,6 +61,12 @@ modal = {
   universityId:{
     type:mongoose.Types.ObjectId,
     ref:"University"
+  },
+  enrollmentNo:{
+    type:String,
+  },
+  studentCardPic:{
+    type:String
   }
 };
 module.exports=schema.modelMake("User",schema.schemaMake(modal))
