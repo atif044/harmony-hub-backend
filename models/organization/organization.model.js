@@ -48,6 +48,7 @@ const modal = {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Event",
       },
-  ]
+  ],
+
 };
 module.exports = schema.modelMake("Organization", schema.schemaMake(modal));

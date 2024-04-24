@@ -49,6 +49,10 @@ const modal = {
     type: mongoose.Schema.Types.ObjectId,
         ref: "Organization",
   },
+  universityId:{
+    type: mongoose.Schema.Types.ObjectId,
+        ref: "University",
+  },
   eventStartDate:{
     type:Date,
     required:true
@@ -68,6 +72,15 @@ const modal = {
   eventStatus:{
     type:String,
     default:"upcoming"
+  },
+  country:{
+type:String,
+required:true
+},
+  city:{
+type:String,
+required:true
+
   }
 };
 module.exports = schema.modelMake("Event", schema.schemaMake(modal));

@@ -1,4 +1,3 @@
-const { response } = require('express');
 const ErrorHandler = require('../../config/ErrorHandler');
 const catchAsyncErrors = require('../../config/catchAsyncErrors');
 const Event = require('../../models/event/event.model');
@@ -6,6 +5,131 @@ const Token=require('../../models/token/token.model');
 const User = require('../../models/user/user.model');
 const { uniqueToken } = require('../../utils/generateToken');
 const {sendEmail}=require('../email-controller/email.controller');
+const bcrypt=require("bcrypt");
+const generateJwt=require('../../utils/generateJwt');
+const { uploadaImageToCloudinary } = require('../../utils/uploadToCloudinary');
+
+exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
+    console.log(req.body)
+    let response= await User.findOne({email:email});    
+    if(response?.length===1){
+      return next(new ErrorHandler("An Account with this email already exists",400));
+    }
+     let profilePic=await uploadaImageToCloudinary(req.files[0].buffer);
+     let cnicFront=await uploadaImageToCloudinary(req.files[2].buffer);
+     let cnicBack=await uploadaImageToCloudinary(req.files[1].buffer);
+    let hashedPassword=await bcrypt.hash(password,10);
+    if(hashedPassword){
+      const body=req.body;
+
+      let account=await User.create(
+        {
+          profilePic:profilePic.secure_url,
+          cnicBack:cnicBack.secure_url,
+          cnicFront:cnicFront.secure_url,
+          password:hashedPassword,
+          email,
+          gender:gender,
+          fullName,country,city,universityId,dateOfBirth
+        }
+      )
+    await account.save();
+    const data = {
+      user: {
+        id: account._id,
+        email: account.email,
+      },
+    };
+    let authToken=generateJwt(data);
+    res.cookie("harmony-hub-volunteer", authToken, {
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    res.cookie("isVerified", account.isVerified, {
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+    const emailVerificationToken = uniqueToken(5);
+    const token = new Token({
+      email: account.email,
+      token: emailVerificationToken,
+      tokenType: "emailVerification",
+      tokenExpiry: new Date(Date.now()), // 1 hour
+    });
+    await token.save();
+    await sendEmail(
+      account.email,
+      "Email Verification",
+      `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Email Verification - Organization</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    line-height: 1.6;
+    background-color: #f4f4f4;
+    margin: 0;
+    padding: 0;
+  }
+
+  .container {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: #ffffff;
+  }
+
+  h1 {
+    color: #333333;
+  }
+
+  p {
+    color: #666666;
+  }
+
+  a {
+    color: #007bff;
+    text-decoration: none;
+  }
+
+  @media only screen and (max-width: 600px) {
+    .container {
+      padding: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>Verify Your Email</h1>
+  <p>Your verification cod is ${emailVerificationToken}</p>
+</div>
+</body>
+</html>`
+    );
+    return res.status(201).json({
+      status: "success",
+      verified: account.isVerified,
+      message: [
+        "Successfully signed up",
+        "An email is sent to your account to verify your identity.",
+      ],
+      body: authToken,
+    });
+  }
+  return next(new ErrorHandler("Error Hashing the password", 400));
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode))
+  }
+})
+
 exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
     const { token } = req.params;
     try {
@@ -27,6 +151,11 @@ exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
         return next("Error Verifying your account. Please try again later",400)
       }
       await Token.findByIdAndDelete(validToken._id);
+      res.cookie("isVerified", true, {
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
       return res
         .status(200)
         .json({ status: "success", message: "Email Verified Successful" });
@@ -62,6 +191,116 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
   
     }
   });
+
+
+  exports.loginUserAccount=catchAsyncErrors(async(req,res,next)=>{
+    const {email,password}=req.body;
+    console.log(password)
+    try {
+      let response=await User.findOne({email});
+      console.log(response)
+      if(response.length===0){
+        return next(new ErrorHandler("Email or Password is incorrect",400));
+      }
+      let passwordCompare = await bcrypt.compare(password, response.password);
+    if (!passwordCompare) {
+      return next(new ErrorHandler("Email or password is incorrect", 400));
+    }
+    const data = {
+      user: {
+        id: response._id,
+        email: response.email,
+      },
+    };
+    const authToken = generateJwt(data);
+    res.cookie("harmony-hub-volunteer", authToken, {
+      secure: false,
+      maxAge: 24 * 60 * 60 * 1000,
+      expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+    });
+      res.cookie("isVerified", response.isVerified, {
+        secure: false,
+        maxAge: 24 * 60 * 60 * 1000,
+        expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      });
+      if(response.isVerified===false){
+        const emailVerificationToken = uniqueToken(5);
+      const token = new Token({
+        email: response.email,
+        token: emailVerificationToken,
+        tokenType: "emailVerification",
+        tokenExpiry: new Date(Date.now()), // 1 hour
+      });
+      await token.save();
+      await sendEmail(
+        response.email,
+        "Email Verification",
+        `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Verification - Organization</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      line-height: 1.6;
+      background-color: #f4f4f4;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #ffffff;
+    }
+
+    h1 {
+      color: #333333;
+    }
+
+    p {
+      color: #666666;
+    }
+
+    a {
+      color: #007bff;
+      text-decoration: none;
+    }
+
+    @media only screen and (max-width: 600px) {
+      .container {
+        padding: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Verify Your Email</h1>
+    <p>Your verification cod is ${emailVerificationToken}</p>
+  </div>
+</body>
+</html>`
+      );
+      }
+    console.log("hogya login")
+    return res.status(200).json({
+      status: "success",
+      message: "Logged in successfully",
+      body: authToken,
+      isVerified:response.isVerified
+    });
+
+
+
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+
+    }
+  })
 
 // async function insertEvent() {
 //   try {

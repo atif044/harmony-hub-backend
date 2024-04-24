@@ -1,20 +1,10 @@
 const schema = require("../mongoose");
 const mongoose = require("mongoose");
 modal = {
-  username: {
-    type: String,
-    required: true,
-    unique: true,
-  },
-  firstName: {
+  fullName: {
     type: String,
     required: [true, "It is a Required Field"],
     min: [2, "Firt Name must be atleast 2 characters"],
-  },
-  lastName: {
-    type: String,
-    required: [true, "It is a Required Field"],
-    min: [2, "Last Name must be atleast 2 characters"],
   },
   email: {
     type: String,
@@ -36,6 +26,10 @@ modal = {
   profilePic: {
     type: String,
     default: "",
+  },
+  gender:{
+    type:String,
+    required:true
   },
   createdAt: {
     type: Date,
@@ -67,6 +61,14 @@ modal = {
   },
   studentCardPic:{
     type:String
-  }
+  },
+  cnicFront:{
+    type:String,
+    required:true
+  },
+  cnicBack:{
+    type:String,
+    required:true
+  },
 };
 module.exports=schema.modelMake("User",schema.schemaMake(modal))

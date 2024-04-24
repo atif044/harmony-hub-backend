@@ -8,6 +8,8 @@ const { uniqueToken } = require("../../utils/generateToken");
 const { sendEmail } = require("../email-controller/email.controller");
 const { uploadaImageToCloudinary } = require("../../utils/uploadToCloudinary");
 const Event=require("../../models/event/event.model");
+const University=require('../../models/university/university.model');
+const { default: mongoose, Mongoose } = require("mongoose");
 exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
   const { organizationEmail, organizationPassword, organizationName,organizationPhoneNo,organizationWebsiteLink,organizationSize } =
     req.body.data;
@@ -234,8 +236,6 @@ exports.loginOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
     req.body = null;
   }
 });
-
-
 exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
   const { token } = req.params;
   const email=req.userData.user.email;
@@ -302,12 +302,11 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
 
   }
 });
-
 exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
   let id=req.userData.user.id;
-  console.log(req.body)
-  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime}=req.body;
+  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId,country,city}=req.body;
   const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  console.log(req.body)
   const match = eventLocationLink.match(regex);
   if (!match) {
     return next(new ErrorHandler("Location Link is not Valid",400))
@@ -330,16 +329,131 @@ exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
       EventImage:url.secure_url,
       longitude:longitude,
       latitude:latitude,
+      universityId:!universityId?null:universityId,
       organizationId:id,
       eventStartDate,
       eventEndDate,
       eventStartTime,
-      eventEndTime
+      eventEndTime,
+      country:country,
+      city:city
     });
     let saved=await event.save();
-    await Organization.updateMany({}, { $addToSet: { currentOrganizationEvents: saved._id } });
+    await Organization.updateOne({_id:id}, { $push: { ["currentOrganizationEvents"]: saved._id }, });
+    await University.updateOne({_id:universityId,},{ $push: { ["pendingCollaborateEvents"]: saved._id }, })
     return res.status(201).json({status:"success",message:"Event Listed Successfully"});
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
+});
+exports.allEvents=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.userData.user.id;
+  try{
+    let events=await Organization.findOne({_id:id}).populate('currentOrganizationEvents');
+      return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
+  }
+  catch(error){
+        return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.eventDetails=catchAsyncErrors(async(req,res,next)=>{
+  const id = new mongoose.Types.ObjectId(req.params.id);
+const orgId =new mongoose.Types.ObjectId(req.userData.user.id);
+  try {
+    let event=await Event.findOne({_id:id,organizationId:orgId}).populate('universityId');
+    return res.status(200).json({status:"success",body:event});
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+
+  }
+});
+exports.editEventDetails=catchAsyncErrors(async(req,res,next)=>{
+  const eventId=req.params.id;
+  let id=req.userData.user.id;
+  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId}=req.body;
+
+   
+  const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+  const match = eventLocationLink.match(regex);
+  if (!match) {
+    return next(new ErrorHandler("Location Link is not Valid",400))
+  } 
+
+  const latitude = match[1];
+    const longitude = match[2];
+  try {
+    let url=null;
+    let event=null;
+    const mongooseEventId= new mongoose.Types.ObjectId(eventId)
+    let beforeEvent=await Event.findById({_id:mongooseEventId});
+    console.log(beforeEvent)
+    if(req.file){
+       url=await uploadaImageToCloudinary(req.file.buffer);
+        event=await  Event.findByIdAndUpdate({_id:eventId},{
+        EventName,
+        EventDescription,
+        VolunteersRequired:VolunteersRequired,
+        eventLocationLink,
+        eventLocationName,
+        eventLocationEmbededLink,
+        eventDurationInDays,
+        EventImage:url?.secure_url,
+        longitude:longitude,
+        latitude:latitude,
+        organizationId:id,
+        eventStartDate,
+        eventEndDate,
+        eventStartTime,
+        eventEndTime
+      });
+    }
+    else{
+       event= await Event.findByIdAndUpdate({_id:eventId},{
+        EventName,
+        EventDescription,
+        VolunteersRequired:VolunteersRequired,
+        eventLocationLink,
+        eventLocationName,
+        eventLocationEmbededLink,
+        eventDurationInDays,
+        longitude:longitude,
+        latitude:latitude,
+        organizationId:id,
+        eventStartDate,
+        eventEndDate,
+        eventStartTime,
+        eventEndTime
+      });
+    }
+    let saved=await event.save();
+
+    return res.status(201).json({status:"success",message:"Event Updated Successfully"});
+  } catch (error) {
+    console.log(error)
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+
+  }
 })
+exports.checkIfPendingOrApprovedByUniversity=catchAsyncErrors(async(req,res,next)=>{
+  const eventId=req.params.id;
+  let {uniId}=req.body;
+  try {
+    const university = await University.findById(uniId);
+    if(!university){
+      return next(new ErrorHandler("University Not Found",400));
+    }
+    else if (university.pendingCollaborateEvents.includes(eventId))
+    {
+      return res.status(200).json({status:"success",body:"pending"})
+    }
+    else if (university.currentCollaboratedEvents.includes(eventId)) {
+      return res.status(200).json({status:"success",body:"approved"});
+  }
+  return next(new ErrorHandler('No Event Exist with this id in the university',400));
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+
+  }
+});

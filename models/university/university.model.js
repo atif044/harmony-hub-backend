@@ -13,11 +13,15 @@ const modal ={
         type:String,
         required:true
     },
-    isApproved:{
+    campus:{
+        type:String,
+        required:true
+    },
+    isVerified:{
         type:Boolean,
         default:false
     },
-    isApprovedByAdmin:{
+    isVerifiedByAdmin:{
         type:Boolean,
         default:false
     },
@@ -27,7 +31,17 @@ const modal ={
           ref: "User",
         },
       ],
+      pendingStudentList:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+      ],
     currentCollaboratedEvents:[{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Event",
+    }],
+    pendingCollaborateEvents:[{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Event",
     }],
@@ -36,7 +50,15 @@ const modal ={
         type: mongoose.Schema.Types.ObjectId,
         ref: "Event",
         }
-    ]
+    ],
+    city:{
+        type:String,
+        required:true
+    },
+    country:{
+        type:String,
+        required:true
+    },
 }
 
 module.exports=schema.modelMake("University",schema.schemaMake(modal));

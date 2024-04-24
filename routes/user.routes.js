@@ -5,10 +5,11 @@ const userController=require('../controllers/user-controller/user.controller');
 const validatorSignup = require("../validator/sigup.validator");
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
 const loginValidator = require("../validator/login.validator");
+const { upload } = require("../utils/uploadToCloudinary");
 const verifyJwt = require("../middleware/verifyJwt");
 //================================AUTHENTICATION USER
-router.route("/register").post(checkIfLoggedIn,validatorSignup,authController.signupController);
-router.route("/login").post(checkIfLoggedIn,loginValidator,authController.loginController);
+router.route("/register").post(checkIfLoggedIn,upload.array("photos",3),userController.createUserAccount);
+router.route("/login").post(checkIfLoggedIn,userController.loginUserAccount);
 //===============================USER ACTIONS
 router.route('/verifyEmail/:token').post(userController.verifyEmailToken);
 router.route('/resendEmail').post(verifyJwt,userController.resendOTP);

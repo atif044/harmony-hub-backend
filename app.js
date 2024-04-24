@@ -8,6 +8,7 @@ const globalError = require("./controllers/error-controller/error.controller");
 // const sanitizeInput = require("./middleware/sanitizeInputs");
 // const ExpressMongoSanitize = require("express-mongo-sanitize");
 const app = express();
+
 require("./database/db.js")();
 app.use(cookieParser());
 // app.use(ExpressMongoSanitize())
