@@ -1,6 +1,6 @@
 const express = require("express");
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
-const { createAdminAccount, loginAdminAccount, getAllUnApprovedUserAccounts, getAllApprovedUserAccounts, getUserProfile, approveTheVolunteerAccount, disapproveTheVolunteerAccount } = require("../controllers/admin-controller/admin.controller");
+const { createAdminAccount, loginAdminAccount, getAllUnApprovedUserAccounts, getAllApprovedUserAccounts, getUserProfile, approveTheVolunteerAccount, disapproveTheVolunteerAccount, getAllUnApprovedOrganizationAccounts, getAllApprovedOrganizationAccounts, approveTheOrganizationAccount, disapproveTheOrganizationAccount, getAllUnApprovedUniversityAccounts, getAllApprovedUniversityAccounts, approveTheUniversityAccount, disapproveTheUniversityAccount, getUniversityProfile, getOrganizationProfile } = require("../controllers/admin-controller/admin.controller");
 const verifyJwt = require("../middleware/verifyJwtAdmin");
 const router=express.Router()
 
@@ -12,4 +12,14 @@ router.route("/getAllApprovedVolunteerProfiles").get(verifyJwt,getAllApprovedUse
 router.route("/getUserProfile/:id").get(verifyJwt,getUserProfile);
 router.route("/approveTheUser/:id").post(verifyJwt,approveTheVolunteerAccount);
 router.route("/disapproveTheUser/:id").post(verifyJwt,disapproveTheVolunteerAccount);
+router.route("/getAllUnapprovedOrgAccounts").get(verifyJwt,getAllUnApprovedOrganizationAccounts);
+router.route("/getAllApprovedOrgAccounts").get(verifyJwt,getAllApprovedOrganizationAccounts);
+router.route("/approveTheOrganization/:id").post(verifyJwt,approveTheOrganizationAccount);
+router.route("/disapproveTheOrganization/:id").post(verifyJwt,disapproveTheOrganizationAccount);
+router.route("/getAllUnapprovedUniAccounts").get(verifyJwt,getAllUnApprovedUniversityAccounts);
+router.route("/getAllApprovedUniAccounts").get(verifyJwt,getAllApprovedUniversityAccounts);
+router.route("/approveTheUniversity/:id").post(verifyJwt,approveTheUniversityAccount);
+router.route("/disapproveTheUniversity/:id").post(verifyJwt,disapproveTheUniversityAccount);
+router.route("/getUniversityProfile/:id").get(verifyJwt,getUniversityProfile);
+router.route("/getOrganizationProfile/:id").get(verifyJwt,getOrganizationProfile);
 module.exports=router;

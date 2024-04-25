@@ -1,10 +1,11 @@
 const ErrorHandler = require('../../config/ErrorHandler');
 const catchAsyncErrors = require('../../config/catchAsyncErrors');
 const Admin=require('../../models/admin/admin.model');
+const Organization=require("../../models/organization/organization.model");
 const bcrypt=require("bcrypt");
 const generateJwtAdmin = require('../../utils/generateJwtAdmin');
 const User = require('../../models/user/user.model');
-
+const University=require("../../models/university/university.model");
 exports.createAdminAccount=catchAsyncErrors(async(req,res,next)=>{
     let {name,email,password}=req.body;
     try {
@@ -47,7 +48,6 @@ exports.createAdminAccount=catchAsyncErrors(async(req,res,next)=>{
         return next(new ErrorHandler(error.message, error.code || error.statusCode));
     }
 });
-
 exports.loginAdminAccount=catchAsyncErrors(async(req,res,next)=>{
     let {email,password}=req.body;
     try {
@@ -161,4 +161,169 @@ exports.disapproveTheVolunteerAccount=catchAsyncErrors(async(req,res,next)=>{
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
-})
+});
+
+exports.getAllUnApprovedOrganizationAccounts=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let users=await Organization.find({isVerifiedByAdmin:false});
+    return res.status(200).json({
+      status:"success",
+      body:users
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getAllApprovedOrganizationAccounts=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let users=await Organization.find({isVerifiedByAdmin:true});
+    return res.status(200).json({
+      status:"success",
+      body:users
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.approveTheOrganizationAccount=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let user=await Organization.findById(id);
+    if(!user){
+      return next(new ErrorHandler("No Account Exists on this Id",400));
+    }
+    if(user.isVerifiedByAdmin===true){
+      return next(new ErrorHandler("This Account is already Approved",400));
+    }
+    user.isVerifiedByAdmin=true;
+    await user.save();
+    return res.status(200).json({
+      status:"success",
+      message:"User Approved Successfully"
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.disapproveTheOrganizationAccount=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let user=await Organization.findById(id);
+    if(!user){
+      return next(new ErrorHandler("No Account Exists on this Id",400));
+    }
+    if(user.isVerifiedByAdmin===false){
+      return next(new ErrorHandler("This Account is already not approved",400));
+    }
+    user.isVerifiedByAdmin=false;
+    await user.save();
+    return res.status(200).json({
+      status:"success",
+      message:"User disapproved Successfully"
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getOrganizationProfile=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.params.id;
+  try {
+    let user=await Organization.findOne({_id:id}).select("-organizationPassword");
+    if(!user){
+      return next(new ErrorHandler("No Such Organization Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:user
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+
+exports.getAllUnApprovedUniversityAccounts=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let users=await University.find({isVerifiedByAdmin:false});
+    return res.status(200).json({
+      status:"success",
+      body:users
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getAllApprovedUniversityAccounts=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let users=await University.find({isVerifiedByAdmin:true});
+    return res.status(200).json({
+      status:"success",
+      body:users
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.approveTheUniversityAccount=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let user=await University.findById(id);
+    if(!user){
+      return next(new ErrorHandler("No Account Exists on this Id",400));
+    }
+    if(user.isVerifiedByAdmin===true){
+      return next(new ErrorHandler("This Account is already Approved",400));
+    }
+    user.isVerifiedByAdmin=true;
+    await user.save();
+    return res.status(200).json({
+      status:"success",
+      message:"User Approved Successfully"
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.disapproveTheUniversityAccount=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let user=await University.findById(id);
+    if(!user){
+      return next(new ErrorHandler("No Account Exists on this Id",400));
+    }
+    if(user.isVerifiedByAdmin===false){
+      return next(new ErrorHandler("This Account is already not approved",400));
+    }
+    user.isVerifiedByAdmin=false;
+    await user.save();
+    return res.status(200).json({
+      status:"success",
+      message:"User disapproved Successfully"
+    });
+
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getUniversityProfile=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.params.id;
+  try {
+    let user=await University.findOne({_id:id}).select("-universityPassword");
+    if(!user){
+      return next(new ErrorHandler("No Such University Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:user
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+
+
+
