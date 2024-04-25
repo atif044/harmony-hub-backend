@@ -23,6 +23,16 @@ const modal = {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
   }],
+  VolunteersIdAppliedRequested: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }],
+  
+  VolunteersIdAppliedRejected: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  }],
+  
   eventLocationLink:{
     type:String,
     requiried:true

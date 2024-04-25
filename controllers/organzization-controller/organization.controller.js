@@ -10,6 +10,7 @@ const { uploadaImageToCloudinary } = require("../../utils/uploadToCloudinary");
 const Event=require("../../models/event/event.model");
 const University=require('../../models/university/university.model');
 const { default: mongoose, Mongoose } = require("mongoose");
+const User=require("../../models/user/user.model");
 exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
   const { organizationEmail, organizationPassword, organizationName,organizationPhoneNo,organizationWebsiteLink,organizationSize } =
     req.body.data;
@@ -455,5 +456,152 @@ exports.checkIfPendingOrApprovedByUniversity=catchAsyncErrors(async(req,res,next
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
 
+  }
+});
+exports.findAllPendingAcceptedAndRejectedVolunteers=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.params.id;
+  try {
+    let event=await Event.findById(id).populate("VolunteersIdAppliedRequested","-password").populate("VolunteersIdApplied","-password").populate("VolunteersIdAppliedRejected","-password");
+    if(!event){
+      return next(new ErrorHandler("Event with Such id does not exit",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      pending:event.VolunteersIdAppliedRequested,
+      accepted:event.VolunteersIdApplied,
+      rejected:event.VolunteersIdAppliedRejected,
+    });
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode))
+  }
+});
+exports.acceptTheVolunteer=catchAsyncErrors(async(req,res,next)=>{
+  let userId=req.body.id;
+  let eventId=req.body.eventId;
+  try {
+    let user=await User.findById(userId)
+    let event=await Event.findById(eventId);
+    if(!event){
+      return next(new ErrorHandler("Event with Such id does not exit",400));
+    }
+    if(!event.VolunteersIdAppliedRequested.includes(userId)){
+        return next(new ErrorHandler("This User Has Not Applied For It",400));
+    }
+    await Event.updateOne(
+      { _id: event._id },
+      { $pull: { VolunteersIdAppliedRequested: userId } }
+    );
+    await Event.updateOne({_id:event._id},{ $push: { ["VolunteersIdApplied"]: userId }, });
+    
+    await User.updateOne({_id:userId}, { $pull: { eventAppliedForRequested: event._id }
+     })
+    await User.updateOne({_id:userId},{ $push: { ["eventAppliedFor"]: event._id }, });
+
+    await sendEmail(user.email,`Request Accepted For Volunteer for Event ${event.EventName}`,`Dear ${user.fullName},
+    We are pleased to inform you that you have been approved for the ${event.EventName}. Please make sure your presence.
+    `)
+    return res.status(200).json({
+      status:"success",
+      message:"User Approved for this event"
+    })
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+exports.rejectTheVolunteer=catchAsyncErrors(async(req,res,next)=>{
+  let userId=req.body.id;
+  let eventId=req.body.eventId;
+  try {
+    let user=await User.findById(userId)
+    let event=await Event.findById(eventId);
+    if(!event){
+      return next(new ErrorHandler("Event with Such id does not exit",400));
+    }
+    if(!event.VolunteersIdAppliedRequested.includes(userId)){
+        return next(new ErrorHandler("This User Has Not Applied For It",400));
+    }
+    await Event.updateOne(
+      { _id: event._id },
+      { $pull: { VolunteersIdAppliedRequested: userId } }
+    );
+    await Event.updateOne({_id:event._id},{ $push: { ["VolunteersIdAppliedRejected"]: userId }, });
+    await User.updateOne({_id:userId}, { $pull: { eventAppliedForRequested: event._id }
+     })
+     await sendEmail(user.email,`Request Rejected For Volunteer for Event ${event.EventName}`,`Dear ${user.fullName},
+    We are sad to inform you that you have been rejected for the ${event.EventName}. DOnt be sad you are just not a perfect fit here.
+    `)
+    return res.status(200).json({
+      status:"success",
+      message:"User Rejected for this event"
+    });
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.FromAcceptTorejectTheVolunteer=catchAsyncErrors(async(req,res,next)=>{
+  let userId=req.body.id;
+  let eventId=req.body.eventId;
+  try {
+    let user=await User.findById(userId)
+
+    let event=await Event.findById(eventId);
+    if(!event){
+      return next(new ErrorHandler("Event with Such id does not exit",400));
+    }
+    if(!event.VolunteersIdApplied.includes(userId)){
+        return next(new ErrorHandler("This User is not approved list",400));
+    }
+    await Event.updateOne(
+      { _id: event._id },
+      { $pull: { VolunteersIdApplied: userId } }
+    );
+    await Event.updateOne({_id:event._id},{ $push: { ["VolunteersIdAppliedRejected"]: userId }, });
+    await User.updateOne({_id:userId}, { $pull: { eventAppliedFor: event._id }
+     });
+     await sendEmail(user.email,` Rejected For Volunteer for Event ${event.EventName}`,`Dear ${user.fullName},
+    We are sad to inform you that you were approved by mistake and now you have been rejected for the ${event.EventName}. Dont be sad you are just not a perfect fit here.
+    `)
+    return res.status(200).json({
+      status:"success",
+      message:"User Rejected for this event"
+    }); 
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.FromRejectToAcceptTheVolunteer=catchAsyncErrors(async(req,res,next)=>{
+  let userId=req.body.id;
+  let eventId=req.body.eventId;
+  try {
+    let user=await User.findById(userId)
+
+    let event=await Event.findById(eventId);
+    if(!event){
+      return next(new ErrorHandler("Event with Such id does not exit",400));
+    }
+    if(!event.VolunteersIdAppliedRejected.includes(userId)){
+        return next(new ErrorHandler("This User is not in Rejected list",400));
+    }
+    await Event.updateOne(
+      { _id: event._id },
+      { $pull: { VolunteersIdAppliedRejected: userId } }
+    );
+    await Event.updateOne({_id:event._id},{ $push: { ["VolunteersIdApplied"]: userId }, });
+    await User.updateOne({_id:userId}, { $push: { ["eventAppliedFor"]: event._id }
+     });
+     await sendEmail(user.email,` Accepted For Volunteer for Event ${event.EventName}`,`Dear ${user.fullName},
+     We are pleased to inform you that you were rejected by mistake and now you have been approved for the ${event.EventName}. Dont be sad you are  a perfect fit here and we will love to have you as a volunteer.
+     `)
+    return res.status(200).json({
+      status:"success",
+      message:"User accepted for this event"
+    }); 
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 });

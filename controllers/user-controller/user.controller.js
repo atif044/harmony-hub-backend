@@ -8,13 +8,14 @@ const {sendEmail}=require('../email-controller/email.controller');
 const bcrypt=require("bcrypt");
 const generateJwt=require('../../utils/generateJwt');
 const { uploadaImageToCloudinary } = require('../../utils/uploadToCloudinary');
+const { default: mongoose } = require('mongoose');
 
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
     console.log(req.body)
     let response= await User.findOne({email:email});    
-    if(response?.length===1){
+    if(response){
       return next(new ErrorHandler("An Account with this email already exists",400));
     }
      let profilePic=await uploadaImageToCloudinary(req.files[0].buffer);
@@ -128,8 +129,7 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
   }
-})
-
+});
 exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
     const { token } = req.params;
     try {
@@ -191,8 +191,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
   
     }
   });
-
-
   exports.loginUserAccount=catchAsyncErrors(async(req,res,next)=>{
     const {email,password}=req.body;
     console.log(password)
@@ -300,8 +298,110 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
 
     }
+  });
+  exports.findAllEventsInCountry=catchAsyncErrors(async(req,res,next)=>{
+    const id =new mongoose.Types.ObjectId(req.userData.user.id);
+    const today = new Date();
+today.setHours(0, 0, 0, 0);
+    try {
+        let user=await User.findById(id);
+        let events = await Event.find({
+          country: user.country,
+          eventStartDate: { $gte: today }, // Filter for events starting from today or in the future
+          $nor: [
+            { VolunteersIdApplied: user._id },
+            { VolunteersIdAppliedRequested: user._id },
+            { VolunteersIdAppliedRejected: user._id }
+          ]
+        })
+        .populate("universityId")
+        .populate("organizationId");
+        
+        // let events=await Event.find({country:user.country}).populate("universityId").populate("organizationId");
+        return res.status(200).json({
+          status:"success",
+          body:events
+        })
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
   })
 
+  exports.eventDetails=catchAsyncErrors(async(req,res,next)=>{
+   const id =new mongoose.Types.ObjectId(req.params.id);
+    try {
+      let event=await Event.findById(id).populate("organizationId").populate("universityId");
+      if(!event){
+        return next(new ErrorHandler("Event with Such id doesnot exit"))
+      }
+      return res.status(200).json({
+        status:"success",
+        body:event
+      })
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
+  });
+
+  exports.joinEvent=catchAsyncErrors(async(req,res,next)=>{
+    const id =new mongoose.Types.ObjectId(req.body.id);
+    let userId= new mongoose.Types.ObjectId(req.userData.user.id);
+    try {
+      let event=await Event.findById(id);
+      if(!event){
+        return next(new ErrorHandler("Event with Such id doesnot exit"))
+      }
+      const date=new Date();
+      date.setHours(0, 0, 0, 0);
+      if(date>event.eventStartDate){
+        return next(new ErrorHandler("Event has started! You can't join this",400));
+      }
+      if(event.VolunteersIdAppliedRequested.includes(userId)||event.VolunteersIdApplied.includes(userId)){
+        return next(new ErrorHandler("You have already applied for this"));
+      }
+      if(event.VolunteersIdAppliedRejected.includes(userId)){
+        return next(new ErrorHandler("You have been already rejected from this event",400))
+      }
+      if(event.VolunteersIdApplied.length===event.VolunteersRequired){
+        return next(new ErrorHandler("Sorry! The slots have been filled :(",400));
+      }
+      await User.updateOne({_id:userId}, { $push: { ["eventAppliedForRequested"]: event._id }, });
+      await Event.updateOne({_id:event._id},{ $push: { ["VolunteersIdAppliedRequested"]: userId }, })
+      return res.status(200).json({
+        status:"success",
+        message:"Your Approval for this Event is Pending"
+      })
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
+  });
+
+  exports.fetchMyAppliedEventsPending=catchAsyncErrors(async(req,res,next)=>{
+    let id=req.userData.user.id;
+    try {
+      let user=await User.findById(id).select("-password").populate("eventAppliedForRequested");
+      return res.status(200).json({
+        status:"success",
+        pending:user.eventAppliedForRequested.length>0?user.eventAppliedForRequested:[],
+      })
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
+  });
+  exports.fetchMyAppliedEventsAccepted=catchAsyncErrors(async(req,res,next)=>{
+    let id=req.userData.user.id;
+    try {
+      let user=await User.findById(id).select("-password").populate("eventAppliedFor");
+      return res.status(200).json({
+        status:"success",
+        accepted:user.eventAppliedFor.length>0?user.eventAppliedFor:[],
+      })
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
+  });
+
+  
 // async function insertEvent() {
 //   try {
 //     // Create a new event instance using the provided data

@@ -45,12 +45,18 @@ modal = {
         ref:"Event"
     }
   ],
+  eventAppliedForRequested:[
+    {
+        type:mongoose.Types.ObjectId,
+        ref:"Event"
+    }
+  ],
   certifications:{
     type:Array
   },
   isVerifiedByAdmin:{
     type:Boolean,
-    default:true
+    default:false
   },
   universityId:{
     type:mongoose.Types.ObjectId,
@@ -70,5 +76,13 @@ modal = {
     type:String,
     required:true
   },
+  country:{
+    type:String,
+    required:true
+  },
+  city:{
+    type:String,
+    required:true
+  }
 };
 module.exports=schema.modelMake("User",schema.schemaMake(modal))
