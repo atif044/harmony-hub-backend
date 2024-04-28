@@ -11,6 +11,7 @@ const Event=require("../../models/event/event.model");
 const University=require('../../models/university/university.model');
 const { default: mongoose, Mongoose } = require("mongoose");
 const User=require("../../models/user/user.model");
+const Attendance = require("../../models/attendance/attendance.model");
 exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
   const { organizationEmail, organizationPassword, organizationName,organizationPhoneNo,organizationWebsiteLink,organizationSize } =
     req.body.data;
@@ -605,3 +606,78 @@ exports.FromRejectToAcceptTheVolunteer=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 });
+exports.getVolunteersByEvent=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let event=await Event.findById(id).populate("VolunteersIdApplied","-password");
+    if(!event){
+        return next(new ErrorHandler("No Event Found",400));
+    }
+    return res.status(200).json(
+      {
+        status:"success",
+        body:event.VolunteersIdApplied,
+        start:event.eventStartDate,
+        end:event.eventEndDate
+      }
+    );
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.markAttendance=catchAsyncErrors(async(req,res,next)=>{
+  // event id
+  let id=req.params.id;
+  let {users,eventDate}=req.body;
+  try {
+    let event=await Event.findById(id);
+    var parts = eventDate.split("/");
+    var formattedDate = parts[2] + "-" + parts[1] + "-" + parts[0];
+    const formattedDateInput=new Date(formattedDate);
+    const evntStart=new Date(event.eventStartDate)
+    const evntEnd=new Date(event.eventEndDate);
+    const todayDate=new Date().toLocaleDateString();
+    let todayFormatted=todayDate.split("/");
+    var todayformattedDate = todayFormatted[2] + "-" + todayFormatted[1] + "-" + todayFormatted[0];
+    const todayDateLatest=new Date(todayformattedDate);
+    if(!event){
+      return next(new ErrorHandler("No Such Event Occurs",400));
+    }
+    let attend=await Attendance.findOne({eventDate:formattedDateInput,event:id});
+    if(attend){
+      return next(new ErrorHandler("You Have already marked attendance for this date",400));
+    }
+    if(formattedDateInput>evntEnd){
+      return next(new ErrorHandler("Date is greater than event's end Date",400));
+    }
+    if(formattedDateInput<evntStart){
+      return next(new ErrorHandler("Date is lesser than event's start Date",400));
+    }
+    console.log(todayDateLatest<formattedDateInput)
+    if((formattedDateInput<=evntEnd&&formattedDateInput>=evntStart)&&todayDateLatest<formattedDateInput){
+      return next(new ErrorHandler("Attendance can only be marked on the same date",400));
+    }
+    if(formattedDateInput==evntEnd &&todayDateLatest<formattedDateInput){
+      return next(new ErrorHandler("You cant't mark attendance before the date"));
+    }
+    if(formattedDateInput==evntStart &&todayDateLatest<formattedDateInput){
+      return next(new ErrorHandler("You cant't mark attendance before the start date"));
+    }
+    const attendance=new Attendance(
+      {
+        eventDate:new Date(formattedDateInput),
+        users:users,
+        event:id
+      }
+    )
+    await attendance.save();
+
+    return res.status(200).json({
+      status:"success",
+      message:"Attendance marked successfully"
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
