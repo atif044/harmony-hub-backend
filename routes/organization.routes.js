@@ -2,7 +2,7 @@ const express = require("express");
 const router=express.Router()
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
 const verifyJwtOrganization=require("../middleware/verifyJwtOrganization");
-const {createOrganizationAccount,loginOrganizationAccount,verifyEmailToken,resendOTP, createEvent, allEvents, eventDetails, editEventDetails, checkIfPendingOrApprovedByUniversity, findAllPendingAcceptedAndRejectedVolunteers, acceptTheVolunteer, rejectTheVolunteer, FromAcceptTorejectTheVolunteer, FromRejectToAcceptTheVolunteer, getVolunteersByEvent, markAttendance} = require("../controllers/organzization-controller/organization.controller");
+const {createOrganizationAccount,loginOrganizationAccount,verifyEmailToken,resendOTP, createEvent, allEvents, eventDetails, editEventDetails, checkIfPendingOrApprovedByUniversity, findAllPendingAcceptedAndRejectedVolunteers, acceptTheVolunteer, rejectTheVolunteer, FromAcceptTorejectTheVolunteer, FromRejectToAcceptTheVolunteer, getVolunteersByEvent, markAttendance, getAttendance, getAttendeesByDate, editAttendanceByDate} = require("../controllers/organzization-controller/organization.controller");
 const { upload } = require("../utils/uploadToCloudinary");
 router.route("/createOrganizationAccount").post(checkIfLoggedIn,createOrganizationAccount);
 router.route("/loginOrganizationAccount").post(checkIfLoggedIn,loginOrganizationAccount);
@@ -20,4 +20,7 @@ router.route("/acceptTorejectTheVolunteer").post(verifyJwtOrganization,FromAccep
 router.route("/rejectToAcceptTheVolunteer").post(verifyJwtOrganization,FromRejectToAcceptTheVolunteer);
 router.route("/getEventVolunteers/:id").get(verifyJwtOrganization,getVolunteersByEvent);
 router.route("/markAttendance/:id").post(verifyJwtOrganization,markAttendance);
+router.route("/getAttendance/:id").get(verifyJwtOrganization,getAttendance);
+router.route("/getAttendeesByDate/:id").post(verifyJwtOrganization,getAttendeesByDate);
+router.route("/editAttendanceByDate/:id").post(verifyJwtOrganization,editAttendanceByDate);
 module.exports=router;

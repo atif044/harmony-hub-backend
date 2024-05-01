@@ -306,18 +306,8 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
 });
 exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
   let id=req.userData.user.id;
-  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId,country,city}=req.body;
-  const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
-  console.log(req.body)
-  const match = eventLocationLink.match(regex);
-  if (!match) {
-    return next(new ErrorHandler("Location Link is not Valid",400))
-  } 
-  if(!req.file){
-    return next(new ErrorHandler("Image is Compulsory",400));
-  }
-  const latitude = match[1];
-    const longitude = match[2];
+  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,longitude,latitude,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId,country,city}=req.body;
+ 
   try {
     let url=await uploadaImageToCloudinary(req.file.buffer);
     let event=new Event({
@@ -329,8 +319,8 @@ exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
       eventLocationEmbededLink,
       eventDurationInDays,
       EventImage:url.secure_url,
-      longitude:longitude,
-      latitude:latitude,
+      longitude:Number(longitude),
+      latitude:Number(latitude),
       universityId:!universityId?null:universityId,
       organizationId:id,
       eventStartDate,
@@ -657,17 +647,13 @@ exports.markAttendance=catchAsyncErrors(async(req,res,next)=>{
     if((formattedDateInput<=evntEnd&&formattedDateInput>=evntStart)&&todayDateLatest<formattedDateInput){
       return next(new ErrorHandler("Attendance can only be marked on the same date",400));
     }
-    if(formattedDateInput==evntEnd &&todayDateLatest<formattedDateInput){
-      return next(new ErrorHandler("You cant't mark attendance before the date"));
-    }
-    if(formattedDateInput==evntStart &&todayDateLatest<formattedDateInput){
-      return next(new ErrorHandler("You cant't mark attendance before the start date"));
-    }
+
     const attendance=new Attendance(
       {
         eventDate:new Date(formattedDateInput),
         users:users,
-        event:id
+        event:id,
+        addedAt:Date.now()
       }
     )
     await attendance.save();
@@ -680,4 +666,63 @@ exports.markAttendance=catchAsyncErrors(async(req,res,next)=>{
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
-})
+});
+exports.getAttendance=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let attendance=await Attendance.find({event:id});
+    if(!attendance){
+      return res.status(200).json({
+        status:"success",
+        message:"Not Marked Yet",
+        body:[]
+      });
+    }
+    return res.status(200).json({
+      status:"success",
+      message:"Fetched Successfully",
+      body:attendance
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getAttendeesByDate=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  const {date}=req.body;
+  try {
+    let attendees=await Attendance.findOne({
+      eventDate:date,
+      event:id
+    }).populate("users.user","fullName");
+    if(!attendees){
+      return next(new ErrorHandler("No Such Attendance occured with this details",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:attendees.users
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.editAttendanceByDate=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  const {date,users}=req.body;
+  try {
+    let response = await Attendance.findOneAndUpdate(
+      { event: id, eventDate: date },
+      { $set: { users: users, lastUpdatedAt: Date.now() } },
+      { new: true } // To return the updated document
+  );
+      if(!response){
+      return next(new ErrorHandler("Attendnace doesnt exists",400))
+    }
+    return res.status(200).json({
+      status:"success",
+      message:"Successfully edited the Attendance"
+    })
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});

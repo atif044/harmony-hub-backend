@@ -12,6 +12,13 @@ modal = {
     event: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Event' // Reference to the Event schema
+    },
+    addedAt:{
+      type:Date,
+    },
+    lastUpdatedAt:{
+      type:Date,
+      default:Date.now
     }
   }
 module.exports=schema.modelMake("Attendance",schema.schemaMake(modal));
