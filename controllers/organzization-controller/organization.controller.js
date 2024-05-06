@@ -332,7 +332,9 @@ exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
     });
     let saved=await event.save();
     await Organization.updateOne({_id:id}, { $push: { ["currentOrganizationEvents"]: saved._id }, });
-    await University.updateOne({_id:universityId,},{ $push: { ["pendingCollaborateEvents"]: saved._id }, })
+    if(universityId){
+      await University.updateOne({_id:universityId,},{ $push: { ["pendingCollaborateEvents"]: saved._id }, })
+    }
     return res.status(201).json({status:"success",message:"Event Listed Successfully"});
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));

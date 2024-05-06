@@ -9,7 +9,7 @@ const bcrypt=require("bcrypt");
 const generateJwt=require('../../utils/generateJwt');
 const { uploadaImageToCloudinary } = require('../../utils/uploadToCloudinary');
 const { default: mongoose } = require('mongoose');
-
+const Attendance=require("../../models/attendance/attendance.model");
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
@@ -325,8 +325,7 @@ today.setHours(0, 0, 0, 0);
     } catch (error) {
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
-  })
-
+  });
   exports.eventDetails=catchAsyncErrors(async(req,res,next)=>{
    const id =new mongoose.Types.ObjectId(req.params.id);
     try {
@@ -342,7 +341,6 @@ today.setHours(0, 0, 0, 0);
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
   });
-
   exports.joinEvent=catchAsyncErrors(async(req,res,next)=>{
     const id =new mongoose.Types.ObjectId(req.body.id);
     let userId= new mongoose.Types.ObjectId(req.userData.user.id);
@@ -375,7 +373,6 @@ today.setHours(0, 0, 0, 0);
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
   });
-
   exports.fetchMyAppliedEventsPending=catchAsyncErrors(async(req,res,next)=>{
     let id=req.userData.user.id;
     try {
@@ -400,8 +397,37 @@ today.setHours(0, 0, 0, 0);
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
   });
-
-  
+  exports.getMyAttendanceForParticularEvent=catchAsyncErrors(async(req,res,next)=>{
+    const id=req.userData.user.id;
+    let eventId=req.params.id;
+    try {
+      let attendance=await Attendance.find({
+        users: { $elemMatch: { user: id } },
+        event:eventId
+      });
+      if(!attendance){
+        return res.status(200).json({status:"success",body:"0"});
+      }
+      let presentCount = 0;
+      let absentCount = 0;
+    attendance.forEach(record => {
+  // Iterate over users array of each record
+        record.users.forEach(user => {
+          console.log( user.status == 'p')
+        if (user.user==id &&user.status == 'p') {
+            ++presentCount;
+          }  
+         if (user.user==id &&user.status == 'a') {
+            ++absentCount;
+            }
+  });
+});
+  let attendancePercentage=(presentCount/(presentCount+absentCount))*100.0;
+  return res.status(200).json({status:"success",body:`${attendancePercentage} %`});
+    } catch (error) {
+      
+    }
+  });
 // async function insertEvent() {
 //   try {
 //     // Create a new event instance using the provided data

@@ -1,3 +1,8 @@
+const cron = require('node-cron');
+
+const { changeEventsStatus,changeEventToEnd } = require('../controllers/automated-api-controller/automated.api.controller'); // Import your controller function
+
+
 const express = require("express");
 const router=express.Router()
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
@@ -23,4 +28,26 @@ router.route("/markAttendance/:id").post(verifyJwtOrganization,markAttendance);
 router.route("/getAttendance/:id").get(verifyJwtOrganization,getAttendance);
 router.route("/getAttendeesByDate/:id").post(verifyJwtOrganization,getAttendeesByDate);
 router.route("/editAttendanceByDate/:id").post(verifyJwtOrganization,editAttendanceByDate);
+
+
+// Define your cron schedule (runs every minute)
+cron.schedule('* * * * * *', async () => {
+    try {
+        // Call your controller function
+         changeEventsStatus();
+         changeEventToEnd();
+
+        // Log success message
+        console.log('Controller function executed successfully.');
+    } catch (error) {
+        // Handle errors
+        console.error('Error executing controller function:', error);
+    }
+}, {
+    scheduled: true,
+    timezone: "Asia/Karachi" // Set timezone to Pakistan (Asia/Karachi)
+
+});
+
+console.log('Cron job scheduled to run every minute.');
 module.exports=router;
