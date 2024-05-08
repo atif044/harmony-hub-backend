@@ -10,6 +10,7 @@ const generateJwt=require('../../utils/generateJwt');
 const { uploadaImageToCloudinary } = require('../../utils/uploadToCloudinary');
 const { default: mongoose } = require('mongoose');
 const Attendance=require("../../models/attendance/attendance.model");
+const Request=require("../../models/request-certificate/request.certificate.model");
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
@@ -193,11 +194,10 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
   });
   exports.loginUserAccount=catchAsyncErrors(async(req,res,next)=>{
     const {email,password}=req.body;
-    console.log(password)
     try {
       let response=await User.findOne({email});
       console.log(response)
-      if(response.length===0){
+      if(!response){
         return next(new ErrorHandler("Email or Password is incorrect",400));
       }
       let passwordCompare = await bcrypt.compare(password, response.password);
@@ -425,9 +425,68 @@ today.setHours(0, 0, 0, 0);
   let attendancePercentage=(presentCount/(presentCount+absentCount))*100.0;
   return res.status(200).json({status:"success",body:`${attendancePercentage} %`});
     } catch (error) {
-      
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
   });
+  exports.requestForCertificate=catchAsyncErrors(async(req,res,next)=>{
+    let id =req.userData.user.id;
+    let eventId=req.params.id;
+    try {
+      let event=await Event.findById(eventId);
+      if(!event){
+        return next(new ErrorHandler("The event with this id doesnt exist",400));
+      }
+      if(!event.VolunteersIdApplied.includes(id)){
+        return next(new ErrorHandler("You were not a part of this event",400))
+      }
+      if(event.eventStatus!="ended"){
+        return next(new ErrorHandler("The Event is not ended yet",400))
+      }
+      let attendance=await Attendance.find({
+        users: { $elemMatch: { user: id } },
+        event:eventId
+      });
+      let presentCount = 0;
+      let absentCount = 0;
+    attendance.forEach(record => {
+        record.users.forEach(user => {
+          console.log( user.status == 'p')
+        if (user.user==id &&user.status == 'p') {
+            ++presentCount;
+          }  
+         if (user.user==id &&user.status == 'a') {
+            ++absentCount;
+            }
+          
+  });
+});
+  let attendancePercentage=(presentCount/(presentCount+absentCount))*100.0;
+  if(attendancePercentage<75.0){
+    return next(new ErrorHandler("Your Attendance is short you can't request the certificate",400));
+  }
+  let result=await Request.find({
+      userId:id,
+      eventId:eventId
+  })
+  if(result.length==1){
+    return next(new ErrorHandler("You have already requested",400));
+  }
+  let creation=new Request(
+    {
+      userId:id,
+      eventId:eventId
+    }
+  )
+  await creation.save();
+  return res.status(200).json({
+    status:"success",
+    message:"Your Request has been successfully recieved"
+  });      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode))
+    }
+  })
+
 // async function insertEvent() {
 //   try {
 //     // Create a new event instance using the provided data

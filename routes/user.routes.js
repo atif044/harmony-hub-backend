@@ -19,4 +19,5 @@ router.route("/joinEvent").post(verifyJwt,userController.joinEvent);
 router.route("/getMyPendingEvents").get(verifyJwt,userController.fetchMyAppliedEventsPending);
 router.route("/getMyAcceptedEvents").get(verifyJwt,userController.fetchMyAppliedEventsAccepted);
 router.route("/getMyAttendance/:id").get(verifyJwt,userController.getMyAttendanceForParticularEvent);
+router.route("/requestCertificate/:id").post(verifyJwt,userController.requestForCertificate);
 module.exports=router;
