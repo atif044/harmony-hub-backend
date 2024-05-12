@@ -1,7 +1,8 @@
 const express = require("express");
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
-const { createAdminAccount, loginAdminAccount, getAllUnApprovedUserAccounts, getAllApprovedUserAccounts, getUserProfile, approveTheVolunteerAccount, disapproveTheVolunteerAccount, getAllUnApprovedOrganizationAccounts, getAllApprovedOrganizationAccounts, approveTheOrganizationAccount, disapproveTheOrganizationAccount, getAllUnApprovedUniversityAccounts, getAllApprovedUniversityAccounts, approveTheUniversityAccount, disapproveTheUniversityAccount, getUniversityProfile, getOrganizationProfile } = require("../controllers/admin-controller/admin.controller");
+const { createAdminAccount, loginAdminAccount, getAllUnApprovedUserAccounts, getAllApprovedUserAccounts, getUserProfile, approveTheVolunteerAccount, disapproveTheVolunteerAccount, getAllUnApprovedOrganizationAccounts, getAllApprovedOrganizationAccounts, approveTheOrganizationAccount, disapproveTheOrganizationAccount, getAllUnApprovedUniversityAccounts, getAllApprovedUniversityAccounts, approveTheUniversityAccount, disapproveTheUniversityAccount, getUniversityProfile, getOrganizationProfile, getAllRequests, uploadCertificateImage, changeRequest } = require("../controllers/admin-controller/admin.controller");
 const verifyJwt = require("../middleware/verifyJwtAdmin");
+const { upload } = require("../utils/uploadToCloudinary");
 const router=express.Router()
 
 //================================AUTHENTICATION USER
@@ -22,4 +23,7 @@ router.route("/approveTheUniversity/:id").post(verifyJwt,approveTheUniversityAcc
 router.route("/disapproveTheUniversity/:id").post(verifyJwt,disapproveTheUniversityAccount);
 router.route("/getUniversityProfile/:id").get(verifyJwt,getUniversityProfile);
 router.route("/getOrganizationProfile/:id").get(verifyJwt,getOrganizationProfile);
+router.route("/getAllRequests").get(verifyJwt,getAllRequests);
+router.route("/uploadCertificate").post(upload.single("image"),uploadCertificateImage);
+router.route("/changeRequestToCompleted/:id/:eventId").post(verifyJwt,changeRequest)
 module.exports=router;

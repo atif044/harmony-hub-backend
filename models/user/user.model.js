@@ -83,6 +83,14 @@ modal = {
   city:{
     type:String,
     required:true
+  },
+  cspHours:{
+    type:Number,
+    default:0
+  },
+  about:{
+      type:String,
+      default:"Not Added"
   }
 };
 module.exports=schema.modelMake("User",schema.schemaMake(modal))

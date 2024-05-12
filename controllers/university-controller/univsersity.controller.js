@@ -366,3 +366,13 @@ exports.getAllCollaboratedEvents=catchAsyncErrors(async(req,res,next)=>{
 
   }
 });
+exports.getAllApprovedAndUnApprovedStudents=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  try {
+    let university=await University.findById(id).select('-universityPassword');
+    return res.status(200).json({status:"success",accepted:university.studentsList,pending:university.pendingStudentList,rejected:university.rejectedStudentList})
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})

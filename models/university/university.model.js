@@ -37,6 +37,12 @@ const modal ={
             ref: "User",
           },
       ],
+      rejectedStudentList:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+          },
+      ],
     currentCollaboratedEvents:[{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Event",

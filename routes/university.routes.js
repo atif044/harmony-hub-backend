@@ -11,7 +11,8 @@ getAllUniversities,
 getAllPendingEvents,
 eventDetails,
 approveEvent,
-getAllCollaboratedEvents
+getAllCollaboratedEvents,
+getAllApprovedAndUnApprovedStudents
 }=require('../controllers/university-controller/univsersity.controller');
 router.route("/createuniversityaccount").post(checkIfLoggedIn,createUniversityAccount);
 router.route("/loginuniversityaccount").post(checkIfLoggedIn,loginUniversityAccount);
@@ -22,5 +23,5 @@ router.route('/getAllPendingEvents').get(verifyJwtUniversity,getAllPendingEvents
 router.route('/eventDetail/:id').get(verifyJwtUniversity,eventDetails);
 router.route("/approveEvent/:id").post(verifyJwtUniversity,approveEvent);
 router.route('/getAllColloabEvents').get(verifyJwtUniversity,getAllCollaboratedEvents);
-
+router.route('/getAllStudents').get(verifyJwtUniversity,getAllApprovedAndUnApprovedStudents);
 module.exports=router;

@@ -88,6 +88,3 @@ exports.pullFromCurrentEventsAndPushToPastEvents = catchAsyncErrors(async (req, 
         console.error("Error:", error);
     }
 });
-
-
-

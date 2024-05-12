@@ -1,8 +1,6 @@
 const cron = require('node-cron');
 
 const { changeEventsStatus,changeEventToEnd,pullFromCurrentEventsAndPushToPastEvents } = require('../controllers/automated-api-controller/automated.api.controller'); // Import your controller function
-
-
 const express = require("express");
 const router=express.Router()
 const { checkIfLoggedIn } = require("../middleware/checkIfAlreadyLoggedIn");
@@ -34,6 +32,7 @@ router.route("/editAttendanceByDate/:id").post(verifyJwtOrganization,editAttenda
 //         // Call your controller function
 //          changeEventsStatus();
 //          changeEventToEnd();
+// pullFromCurrentEventsAndPushToPastEvents()
          
 
 //         // Log success message
@@ -47,6 +46,5 @@ router.route("/editAttendanceByDate/:id").post(verifyJwtOrganization,editAttenda
 //     timezone: "Asia/Karachi" // Set timezone to Pakistan (Asia/Karachi)
 
 // });
-// pullFromCurrentEventsAndPushToPastEvents()
 // console.log('Cron job scheduled to run every minute.');
 module.exports=router;

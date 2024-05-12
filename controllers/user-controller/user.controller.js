@@ -11,6 +11,7 @@ const { uploadaImageToCloudinary } = require('../../utils/uploadToCloudinary');
 const { default: mongoose } = require('mongoose');
 const Attendance=require("../../models/attendance/attendance.model");
 const Request=require("../../models/request-certificate/request.certificate.model");
+const University=require('../../models/university/university.model');
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
@@ -45,6 +46,9 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
       },
     };
     let authToken=generateJwt(data);
+    if(universityId){
+      let uniId=await University.findByIdAndUpdate({_id:universityId},{ $push: { ["pendingStudentList"]: account._id }});
+    }
     res.cookie("harmony-hub-volunteer", authToken, {
       secure: false,
       maxAge: 24 * 60 * 60 * 1000,
@@ -291,9 +295,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
       body: authToken,
       isVerified:response.isVerified
     });
-
-
-
     } catch (error) {
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
 
@@ -401,6 +402,7 @@ today.setHours(0, 0, 0, 0);
     const id=req.userData.user.id;
     let eventId=req.params.id;
     try {
+      let email=await User.findById(id)
       let attendance=await Attendance.find({
         users: { $elemMatch: { user: id } },
         event:eventId
@@ -423,7 +425,7 @@ today.setHours(0, 0, 0, 0);
   });
 });
   let attendancePercentage=(presentCount/(presentCount+absentCount))*100.0;
-  return res.status(200).json({status:"success",body:`${attendancePercentage} %`});
+  return res.status(200).json({status:"success",body:`${attendancePercentage} %`,email:email.email});
     } catch (error) {
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
@@ -485,7 +487,68 @@ today.setHours(0, 0, 0, 0);
     } catch (error) {
       return next(new ErrorHandler(error.message, error.code || error.statusCode))
     }
+  });
+  exports.checkIfRequested=catchAsyncErrors(async(req,res,next)=>{
+    let id=req.params.id;
+    let userId=req.userData.user.id;
+    try {
+      let response=await Request.find(
+        {
+          userId:userId,
+          eventId:id
+        }
+      );
+      if(response.length===0){
+       return res.status(200).json({
+          status:"success",
+          body:false
+        })
+      }
+     return res.status(200).json({
+        status:"success",
+        body:true
+      })
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
+  });
+  exports.getMyProfileDetails=catchAsyncErrors(async(req,res,next)=>{
+    const id=req.userData.user.id;
+    try {
+      let user=await User.findById(id).select("-password").populate("eventAppliedFor");
+      if(user.universityId){
+        let universityStudent=await University.find(user.universityId).select("-universityPassword")
+        // console.log(universityStudent.studentsList)
+        if(universityStudent?.studentsList?.includes(id)){
+          return res.status(200).json({status:"success",body:user,university:universityStudent});
+        }
+      }
+      return res.status(200).json({status:"success",body:user,university:null});
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
   })
+
+  exports.addBio=catchAsyncErrors(async(req,res,next)=>{
+    let id=req.userData.user.id;
+    let about=req.body.about;
+    try {
+      let response=await User.findById(id);
+      response.about=about;
+     await response.save();
+     res.status(200).json({
+      status:"success",
+      message:"Bio Added Successfully"
+     })
+
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
+  })
+
 
 // async function insertEvent() {
 //   try {

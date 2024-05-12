@@ -6,6 +6,9 @@ const bcrypt=require("bcrypt");
 const generateJwtAdmin = require('../../utils/generateJwtAdmin');
 const User = require('../../models/user/user.model');
 const University=require("../../models/university/university.model");
+const {uploadaImageToCloudinary}=require('../../utils/uploadToCloudinary');
+const Event =require('../../models/event/event.model')
+const requestCertificateModel = require('../../models/request-certificate/request.certificate.model');
 exports.createAdminAccount=catchAsyncErrors(async(req,res,next)=>{
     let {name,email,password}=req.body;
     try {
@@ -323,7 +326,86 @@ exports.getUniversityProfile=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 });
+exports.getAllRequests=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let response=await requestCertificateModel.find().populate("userId",["fullName","email"]).populate({
+      path:"eventId",
+    select: ['EventName'],
+    populate: {
+        path: 'universityId',
+        select: ['universityName'] // Assuming 'universityName' is the field you want to populate
+    }}).populate({
+      path:"eventId",
+    select: ['EventName'],
+    populate: {
+        path: 'organizationId',
+        select: ['organizationName'] // Assuming 'universityName' is the field you want to populate
+    }
+    });
+    if(response.length===0){
+      return res.status(200).json({
+        status:"success",
+        body:[]
+      });
+    }
+    return res.status(200).json({
+      status:"success",
+      body:response
+    });
 
+    
+  } catch (error) {
+        return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+exports.uploadCertificateImage=catchAsyncErrors(
+  async(req,res,next)=>{
+    try {
+      if(!req.body.image){
+        return next(new ErrorHandler("No Image Found",400));
+      }
+      let response=await uploadaImageToCloudinary(req.body.image)
+      return res.status(200).json({
+        status:"success",
+        body:response.secure_url
+      });
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
+  }
+);
+exports.changeRequest=catchAsyncErrors(
+  async(req,res,next)=>{
+      let userId=req.params.id;
+      let eventId=req.params.eventId;
+    try {
+      const response=await requestCertificateModel.findOneAndUpdate({
+        userId,
+        eventId,
+        status:"pending"
+      },{
+        status:"issued"
+      },{
+        new:true
+      });
+      console.log(response)
+      let event=await Event.findById(eventId);
+      const updatedUser = await User.findByIdAndUpdate(
+        userId, 
+        { $inc: { cspHours: Number(event.eventDurationInDays) } }
+      );   
+      console.log(123)
+         res.status(200).json({
+        status:"success",
+        message:"Certificate Added"
+      })
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
+  }
+)
 
 
 

@@ -9,11 +9,15 @@ const modal ={
         type:mongoose.Schema.ObjectId,
         ref:"Event"
     },
+    status:{
+        type:String,
+        default:"pending",
+        enum:["pending","issued"]
+    },
     time:{
         type:Date,
         default:Date.now
     }
-
 }
 
 module.exports=schema.modelMake("CertificateRequest",schema.schemaMake(modal));

@@ -20,4 +20,7 @@ router.route("/getMyPendingEvents").get(verifyJwt,userController.fetchMyAppliedE
 router.route("/getMyAcceptedEvents").get(verifyJwt,userController.fetchMyAppliedEventsAccepted);
 router.route("/getMyAttendance/:id").get(verifyJwt,userController.getMyAttendanceForParticularEvent);
 router.route("/requestCertificate/:id").post(verifyJwt,userController.requestForCertificate);
+router.route("/checkIfRequested/:id").get(verifyJwt,userController.checkIfRequested);
+router.route("/myProfile").get(verifyJwt,userController.getMyProfileDetails);
+router.route("/addBio").post(verifyJwt,userController.addBio);
 module.exports=router;
