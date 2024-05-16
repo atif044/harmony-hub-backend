@@ -343,7 +343,36 @@ exports.createEvent=catchAsyncErrors(async(req,res,next)=>{
 exports.allEvents=catchAsyncErrors(async(req,res,next)=>{
   const id=req.userData.user.id;
   try{
-    let events=await Organization.findOne({_id:id}).populate('currentOrganizationEvents');
+    let events=await Organization.findOne({_id:id}).populate({
+      path: 'currentOrganizationEvents',
+      match: { eventStatus: 'upcoming' }});
+      console.log(events)
+      return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
+  }
+  catch(error){
+        return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.allEventsStarted=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.userData.user.id;
+  try{
+    let events=await Organization.findOne({_id:id}).populate({
+      path: 'currentOrganizationEvents',
+      match: { eventStatus: 'started' }});
+      console.log(events)
+      return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
+  }
+  catch(error){
+        return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.allEventsEnded=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.userData.user.id;
+  try{
+    let events=await Organization.findOne({_id:id}).populate({
+      path: 'currentOrganizationEvents',
+      match: { eventStatus: 'started' }});
+      console.log(events)
       return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
   }
   catch(error){

@@ -8,6 +8,7 @@ const {uniqueToken}=require("../../utils/generateToken");
 const {sendEmail}=require('../email-controller/email.controller');
 const { default: mongoose, Mongoose } = require("mongoose");
 const Event=require('../../models/event/event.model');
+const userModel = require("../../models/user/user.model");
 exports.createUniversityAccount = catchAsyncErrors(async (req, res, next) => {
   const { universityName,universityEmail,universityPassword,campus,country,city } =
     req.body;
@@ -369,10 +370,150 @@ exports.getAllCollaboratedEvents=catchAsyncErrors(async(req,res,next)=>{
 exports.getAllApprovedAndUnApprovedStudents=catchAsyncErrors(async(req,res,next)=>{
   let id=req.userData.user.id;
   try {
-    let university=await University.findById(id).select('-universityPassword');
+    let university=await University.findById(id).select('-universityPassword').populate("studentsList").populate("pendingStudentList").populate("rejectedStudentList");
     return res.status(200).json({status:"success",accepted:university.studentsList,pending:university.pendingStudentList,rejected:university.rejectedStudentList})
     
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getUserProfile=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.params.id;
+  try {
+    let user=await userModel.findOne({_id:id}).select("-password").populate("universityId");
+    if(!user){
+      return next(new ErrorHandler("No Such User Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:user
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.approveTheStudent=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let student=await userModel.findById(id).select("-password");
+    if(!student){
+      return next(new ErrorHandler("No Account Exist",400));
+    }
+    let university=await University.findById(student?.universityId).select("-universityPassword");
+    if(!university){
+      return next(new ErrorHandler("The University Does Not Exists",400));
+    }
+    if(university?.studentsList.includes(student._id)){
+      return next(new ErrorHandler("Already Approved",400));
+    }
+    if(!university?.pendingStudentList.includes(student._id)){
+      return next(new ErrorHandler("This User has not requested",400));
+    }
+    await University.updateOne({_id:student?.universityId},{
+      $push: { ["studentsList"]: student._id },
+     $pull: { pendingStudentList: student._id }
+     })
+    return res.status(200).json({
+      status:"success",
+      message:"User has been Approved"
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+exports.rejectTheStudent=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let student=await userModel.findById(id).select("-password");
+    if(!student){
+      return next(new ErrorHandler("No Account Exist",400));
+    }
+    let university=await University.findById(student?.universityId).select("-universityPassword");
+    if(!university){
+      return next(new ErrorHandler("The University Does Not Exists",400));
+    }
+    if(university?.rejectedStudentList.includes(student._id)){
+      return next(new ErrorHandler("Already Rejected",400));
+    }
+    if(!university?.pendingStudentList.includes(student._id)){
+      return next(new ErrorHandler("This User has not requested",400));
+    }
+    await University.updateOne({_id:student?.universityId},{
+      $push: { ["rejectedStudentList"]: student._id },
+     $pull: { pendingStudentList: student._id }
+     })
+     student.universityId=null;
+     await student.save()
+    return res.status(200).json({
+      status:"success",
+      message:"User has been rejected"
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.approveToReject=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let student=await userModel.findById(id).select("-password");
+    if(!student){
+      return next(new ErrorHandler("No Account Exist",400));
+    }
+    let university=await University.findById(student?.universityId).select("-universityPassword");
+    if(!university){
+      return next(new ErrorHandler("The University Does Not Exists",400));
+    }
+    if(university?.rejectedStudentList.includes(student._id)){
+      return next(new ErrorHandler("Already Rejected",400));
+    }
+    if(!university?.studentsList.includes(student._id)){
+      return next(new ErrorHandler("This User is not approved yet",400));
+    }
+    await University.updateOne({_id:student?.universityId},{
+      $push: { ["rejectedStudentList"]: student._id },
+     $pull: { studentsList: student._id }
+     })
+     student.universityId=null;
+     await student.save()
+    return res.status(200).json({
+      status:"success",
+      message:"User has been rejected"
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));    
+  }
+});
+exports.rejectToApprove=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let student=await userModel.findById(id).select("-password");
+    if(!student){
+      return next(new ErrorHandler("No Account Exist",400));
+    }
+    let university=await University.findOne({
+      rejectedStudentList: { $in: [student._id]    }
+    }).select("-universityPassword");
+    if(!university){
+      return next(new ErrorHandler("The University Does Not Exists",400));
+    }
+    if(university?.studentsList?.includes(student._id)){
+      return next(new ErrorHandler("Already Approved",400));
+    }
+    console.log(university.rejectedStudentList)
+    if(!university?.rejectedStudentList?.includes(student._id)){
+      return next(new ErrorHandler("This User is not rejected yet",400));
+    }
+    await University.updateOne({_id:university._id},{
+      $push: { ["studentsList"]: student._id },
+     $pull: { rejectedStudentList: student._id }
+     })
+     student.universityId=university._id;
+     await student.save()
+    return res.status(200).json({
+      status:"success",
+      message:"User has been approved"
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));    
   }
 })

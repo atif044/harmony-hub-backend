@@ -308,6 +308,7 @@ today.setHours(0, 0, 0, 0);
         let user=await User.findById(id);
         let events = await Event.find({
           country: user.country,
+          eventStatus:"upcoming",
           eventStartDate: { $gte: today }, // Filter for events starting from today or in the future
           $nor: [
             { VolunteersIdApplied: user._id },
@@ -377,7 +378,9 @@ today.setHours(0, 0, 0, 0);
   exports.fetchMyAppliedEventsPending=catchAsyncErrors(async(req,res,next)=>{
     let id=req.userData.user.id;
     try {
-      let user=await User.findById(id).select("-password").populate("eventAppliedForRequested");
+      let user=await User.findById(id).select("-password").populate({
+        path: 'eventAppliedForRequested',
+        match: { eventStatus: 'upcoming' }});
       return res.status(200).json({
         status:"success",
         pending:user.eventAppliedForRequested.length>0?user.eventAppliedForRequested:[],

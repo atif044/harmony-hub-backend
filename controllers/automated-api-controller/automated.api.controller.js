@@ -9,10 +9,10 @@ exports.changeEventsStatus=catchAsyncErrors(
     async(req,res,next)=>{
         try {
             const today = new Date();
-            const date=today.getFullYear()+"-"+((today.getMonth()+1)>9?(today.getMonth()+1):"0"+(today.getMonth()+1))+"-"+((today.getDate())>9?(today.getDate()+1):"0"+(today.getDate()));
-            const todaysDate=new Date(date)
+            const date=today.getFullYear()+"-"+((today.getMonth()+1)>9?(today.getMonth()+1):"0"+(today.getMonth()+1))+"-"+((today.getDate())>9?(today.getDate()):"0"+(today.getDate()));
+            const todaysDate=new Date(date)           
             // Update events whose start date is greater than or equal to today's date
-            await Event.updateMany({ eventStartDate: { $lte: todaysDate } }, { $set: { eventStatus: 'started' } });
+            await Event.updateMany({ eventStartDate: { $lte: todaysDate },eventStatus:"upcoming" }, { $set: { eventStatus: 'started' } });
         } catch (error) {
             console.log(error);
         }
@@ -21,7 +21,7 @@ exports.changeEventsStatus=catchAsyncErrors(
 exports.changeEventToEnd = catchAsyncErrors(async (req, res, next) => {
     try {
         const today = new Date();
-        const date = today.getFullYear() + "-" + ((today.getMonth() + 1) > 9 ? (today.getMonth() + 1) : "0" + (today.getMonth() + 1)) + "-" + ((today.getDate()) > 9 ? (today.getDate() + 1) : "0" + (today.getDate()));
+        const date = today.getFullYear() + "-" + ((today.getMonth() + 1) > 9 ? (today.getMonth() + 1) : "0" + (today.getMonth() + 1)) + "-" + ((today.getDate()) > 9 ? (today.getDate()) : "0" + (today.getDate()));
         const todaysDate = new Date(date)
         let results = await Event.find({ eventEndDate: { $lte: todaysDate } });
         const ids = [];
@@ -39,7 +39,7 @@ exports.changeEventToEnd = catchAsyncErrors(async (req, res, next) => {
                 finalizedIds.push(val)
             }
         }));
-        await Event.updateMany({ _id: { $in: finalizedIds } }, { $set: { eventStatus: 'ended' } });
+        await Event.updateMany({ _id: { $in: finalizedIds },eventStatus:"started" }, { $set: { eventStatus: 'ended' } });
     } catch (error) {
         console.log(error);
     }
