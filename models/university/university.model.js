@@ -13,6 +13,10 @@ const modal ={
         type:String,
         required:true
     },
+    universityDescription:{
+        type:String,
+
+    },
     campus:{
         type:String,
         required:true
@@ -65,6 +69,10 @@ const modal ={
         type:String,
         required:true
     },
+    profilePic:{
+        type:String,
+        default:"https://res.cloudinary.com/dc5z2ofbj/image/upload/v1713971862/rxu2kuyegzgrk9obq49w.png"
+      }
 }
 
 module.exports=schema.modelMake("University",schema.schemaMake(modal));

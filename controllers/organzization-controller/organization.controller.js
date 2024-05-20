@@ -12,6 +12,9 @@ const University=require('../../models/university/university.model');
 const { default: mongoose, Mongoose } = require("mongoose");
 const User=require("../../models/user/user.model");
 const Attendance = require("../../models/attendance/attendance.model");
+const attendanceModel = require("../../models/attendance/attendance.model");
+const { differenceInCalendarDays } = require('date-fns');
+const ReviewVoulunteer=require('../../models/review/review.volunteer.model')
 exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
   const { organizationEmail, organizationPassword, organizationName,organizationPhoneNo,organizationWebsiteLink,organizationSize } =
     req.body.data;
@@ -371,7 +374,7 @@ exports.allEventsEnded=catchAsyncErrors(async(req,res,next)=>{
   try{
     let events=await Organization.findOne({_id:id}).populate({
       path: 'currentOrganizationEvents',
-      match: { eventStatus: 'started' }});
+      match: { eventStatus: 'ended' }});
       console.log(events)
       return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
   }
@@ -381,7 +384,7 @@ exports.allEventsEnded=catchAsyncErrors(async(req,res,next)=>{
 });
 exports.eventDetails=catchAsyncErrors(async(req,res,next)=>{
   const id = new mongoose.Types.ObjectId(req.params.id);
-const orgId =new mongoose.Types.ObjectId(req.userData.user.id);
+  const orgId =new mongoose.Types.ObjectId(req.userData.user.id);
   try {
     let event=await Event.findOne({_id:id,organizationId:orgId}).populate('universityId');
     return res.status(200).json({status:"success",body:event});
@@ -394,23 +397,13 @@ const orgId =new mongoose.Types.ObjectId(req.userData.user.id);
 exports.editEventDetails=catchAsyncErrors(async(req,res,next)=>{
   const eventId=req.params.id;
   let id=req.userData.user.id;
-  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId}=req.body;
+  const {EventName,EventDescription,VolunteersRequired,eventLocationLink,longitude,latitude,eventLocationName,eventLocationEmbededLink,eventDurationInDays,eventStartDate,eventEndDate,eventStartTime,eventEndTime,universityId}=req.body;
 
-   
-  const regex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
-  const match = eventLocationLink.match(regex);
-  if (!match) {
-    return next(new ErrorHandler("Location Link is not Valid",400))
-  } 
-
-  const latitude = match[1];
-    const longitude = match[2];
   try {
     let url=null;
     let event=null;
     const mongooseEventId= new mongoose.Types.ObjectId(eventId)
     let beforeEvent=await Event.findById({_id:mongooseEventId});
-    console.log(beforeEvent)
     if(req.file){
        url=await uploadaImageToCloudinary(req.file.buffer);
         event=await  Event.findByIdAndUpdate({_id:eventId},{
@@ -428,7 +421,7 @@ exports.editEventDetails=catchAsyncErrors(async(req,res,next)=>{
         eventStartDate,
         eventEndDate,
         eventStartTime,
-        eventEndTime
+        universityId:universityId!==null?universityId:beforeEvent.universityId
       });
     }
     else{
@@ -446,7 +439,8 @@ exports.editEventDetails=catchAsyncErrors(async(req,res,next)=>{
         eventStartDate,
         eventEndDate,
         eventStartTime,
-        eventEndTime
+        eventEndTime,
+        universityId:universityId!==null?universityId:beforeEvent.universityId
       });
     }
     let saved=await event.save();
@@ -757,3 +751,209 @@ exports.editAttendanceByDate=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 });
+exports.checkTheStatusOfEvent=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let event=await Event.findById(id);
+    if(!event){
+      return next(new ErrorHandler("Event doesnt exits",400));
+    }
+    return res.status(200).json({status:"success",body:event.eventStatus})
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.changeEventStatus=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    const today=new Date()
+    const checkerStartDate = await Event.findOne({
+      _id: id,
+      eventStartDate: { $lte: today },
+    });
+    if(!checkerStartDate){
+      return next(new ErrorHandler("You can only Start the event on the start date",400))
+    }
+    if(checkerStartDate.VolunteersIdApplied===0){
+      return next(new ErrorHandler("No Volunteer is approved/has applied",400))
+    }
+    let event=await Event.findOneAndUpdate({_id:id,
+      eventStatus:"upcoming"
+    },
+    {
+      eventStatus:"started"
+    }
+  );
+  return res.status(200).json({
+    status:"success",
+    message:"Event has been started"
+  })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.endEvent=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.params.id;
+  try {
+    const today = new Date();
+    const date = today.getFullYear() + "-" + ((today.getMonth() + 1) > 9 ? (today.getMonth() + 1) : "0" + (today.getMonth() + 1)) + "-" + ((today.getDate()) > 9 ? (today.getDate()) : "0" + (today.getDate()));
+    const todaysDate = new Date(date)
+    let result = await Event.findById(id);
+        const startDate = new Date(result.eventStartDate);
+        const endDate = new Date(result.eventEndDate);
+        const daysDifference = differenceInCalendarDays(endDate, startDate) + 1;
+        let response = await attendanceModel.find({ event: id });
+        if (response.length == daysDifference) {
+          const updatedOrganizations = await Organization.updateOne(
+            { 
+                _id:result.organizationId, // Filter by organizationIds
+                currentOrganizationEvents: { $in: id} // Filter by eventIds in currentOrganizationEvents
+            },
+            { 
+                $pull: { currentOrganizationEvents: id}, // Remove eventIds from currentOrganizationEvents
+                $push: { ['pastOrganizationEvents']: id } // Add eventIds to pastOrganizationEvents
+            },
+        );
+          const updatedUniveristy = await University.updateOne(
+            { 
+                _id:result.universityId, // Filter by organizationIds
+                currentCollaboratedEvents: { $in: id} // Filter by eventIds in currentOrganizationEvents
+            },
+            { 
+                $pull: { currentCollaboratedEvents: id}, // Remove eventIds from currentOrganizationEvents
+                $push: { ['pastCollaboratedEvents']: id } // Add eventIds to pastOrganizationEvents
+            },
+        );
+          await Event.findByIdAndUpdate(id,{eventStatus:"ended"})
+          return res.status(200).json({
+            status:"success",
+            message:"event ended"
+          });
+        }
+        return next(new ErrorHandler("Attendance pending",400));
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getAllVolunteers=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let event=await Event.findById(id).populate('VolunteersIdApplied','-password');
+    return res.status(200).json({
+      status:"success",
+      body:event.VolunteersIdApplied
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+exports.reviewVolunteer=catchAsyncErrors(async(req,res,next)=>{
+  let eventId=req.params.eventId;
+  let userId=req.body.userId;
+  let rating=req.body.rating;
+  try {
+    let event=await Event.findById(eventId);
+    if(event.eventStatus!=="ended"){
+      return next(new ErrorHandler("Event Not Ended Yet",400));
+    }
+    let response=await ReviewVoulunteer.find({
+      userId:userId,
+      eventId:eventId
+    });
+    if(response.length>0){
+      await ReviewVoulunteer.findOneAndUpdate({userId:userId},{
+        rating:rating
+      });
+      return res.status(200).json({
+        status:"success",
+        message:"Rating has been updated"
+      })
+    }
+    let review=new ReviewVoulunteer({
+      userId,
+      eventId,
+      rating
+    })
+    await review.save();
+    return res.status(200).json({
+      status:"success",
+      message:"User has been rated"
+    }); 
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.getMyProfile=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  try {
+    let response=await Organization.findById(id).select('-organizationPassword').populate('currentOrganizationEvents').populate('pastOrganizationEvents');
+    if(!response){
+      return next(new ErrorHandler("No Organization Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:response
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+exports.getMyPublicProfile=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let response=await Organization.findById(id).select('-organizationPassword').populate('currentOrganizationEvents').populate('pastOrganizationEvents');
+    if(!response){
+      return next(new ErrorHandler("No Organization Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:response
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+
+exports.addBio=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  let about=req.body.about;
+  try {
+    let response=await Organization.findById(id);
+    response.organizationDescription=about;
+   await response.save();
+   res.status(200).json({
+    status:"success",
+    message:"Bio Added Successfully"
+   })
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.addProfilePic=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id
+  try {
+    if(!req.file){
+      return next(new ErrorHandler("No Image Attached",400));
+    }
+    let data=await uploadaImageToCloudinary(req.file.buffer);
+    let update=await Organization.findByIdAndUpdate(id,{
+      profilePic:data.secure_url
+    })
+    return res.status(200).json({
+      status:"success",
+      message:"Profile Pic updated successfully"
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})

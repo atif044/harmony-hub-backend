@@ -9,6 +9,7 @@ const {sendEmail}=require('../email-controller/email.controller');
 const { default: mongoose, Mongoose } = require("mongoose");
 const Event=require('../../models/event/event.model');
 const userModel = require("../../models/user/user.model");
+const { uploadaImageToCloudinary } = require("../../utils/uploadToCloudinary");
 exports.createUniversityAccount = catchAsyncErrors(async (req, res, next) => {
   const { universityName,universityEmail,universityPassword,campus,country,city } =
     req.body;
@@ -515,5 +516,86 @@ exports.rejectToApprove=catchAsyncErrors(async(req,res,next)=>{
     });
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));    
+  }
+});
+
+exports.getMyProfile=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  try {
+    let response=await University.findById(id).select('-universityPassword').populate('pastCollaboratedEvents').populate('currentCollaboratedEvents').populate('studentsList');
+    if(!response){
+      return next(new ErrorHandler("No University Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:response
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getMyPublicProfile=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    let response=await University.findById(id).select('-universityPassword').populate('pastCollaboratedEvents').populate('currentCollaboratedEvents').populate('studentsList');
+    if(!response){
+      return next(new ErrorHandler("No University Found",400));
+    }
+    return res.status(200).json({
+      status:"success",
+      body:response
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.addBio=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  let about=req.body.about;
+  try {
+    let response=await University.findById(id);
+    response.universityDescription=about;
+   await response.save();
+   res.status(200).json({
+    status:"success",
+    message:"Bio Added Successfully"
+   })
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.addProfilePic=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id
+  try {
+    if(!req.file){
+      return next(new ErrorHandler("No Image Attached",400));
+    }
+    let data=await uploadaImageToCloudinary(req.file.buffer);
+    let update=await University.findByIdAndUpdate(id,{
+      profilePic:data.secure_url
+    })
+    return res.status(200).json({
+      status:"success",
+      message:"Profile Pic updated successfully"
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.getAllStudents=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  try {
+    let response=await University.findById(id).populate('studentsList',['_id','fullName','email','cspHours',"enrollmentNo"])
+    return res.status(200).json({status:"success",body:response});
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 })

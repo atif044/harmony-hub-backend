@@ -12,9 +12,13 @@ const { default: mongoose } = require('mongoose');
 const Attendance=require("../../models/attendance/attendance.model");
 const Request=require("../../models/request-certificate/request.certificate.model");
 const University=require('../../models/university/university.model');
+const {calculateDistance}=require('../../utils/eventsByLocation');
+const ReviewEvent=require('../../models/review/review.event.model');
+const organizationModel = require('../../models/organization/organization.model');
+
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
-    const {email,password,gender,fullName,country,city,universityId,dateOfBirth}=req.body;
+    const {email,password,gender,fullName,country,city,universityId,dateOfBirth,enrollmentNo}=req.body;
     console.log(req.body)
     let response= await User.findOne({email:email});    
     if(response){
@@ -23,6 +27,7 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
      let profilePic=await uploadaImageToCloudinary(req.files[0].buffer);
      let cnicFront=await uploadaImageToCloudinary(req.files[2].buffer);
      let cnicBack=await uploadaImageToCloudinary(req.files[1].buffer);
+     let studentCard=await uploadaImageToCloudinary(req.files[3]?.buffer);
     let hashedPassword=await bcrypt.hash(password,10);
     if(hashedPassword){
       const body=req.body;
@@ -32,7 +37,9 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
           profilePic:profilePic.secure_url,
           cnicBack:cnicBack.secure_url,
           cnicFront:cnicFront.secure_url,
+          studentCardPic:studentCard.secure_url||"",
           password:hashedPassword,
+          enrollmentNo:enrollmentNo||"",
           email,
           gender:gender,
           fullName,country,city,universityId,dateOfBirth
@@ -318,7 +325,7 @@ today.setHours(0, 0, 0, 0);
         })
         .populate("universityId")
         .populate("organizationId");
-        
+        console.log(events)
         // let events=await Event.find({country:user.country}).populate("universityId").populate("organizationId");
         return res.status(200).json({
           status:"success",
@@ -521,9 +528,26 @@ today.setHours(0, 0, 0, 0);
     try {
       let user=await User.findById(id).select("-password").populate("eventAppliedFor");
       if(user.universityId){
-        let universityStudent=await University.find(user.universityId).select("-universityPassword")
+        let universityStudent=await University.findById(user.universityId).select("-universityPassword")
         // console.log(universityStudent.studentsList)
         if(universityStudent?.studentsList?.includes(id)){
+          return res.status(200).json({status:"success",body:user,university:universityStudent});
+        }
+      }
+      return res.status(200).json({status:"success",body:user,university:null});
+      
+    } catch (error) {
+      return next(new ErrorHandler(error.message, error.code || error.statusCode));
+    }
+  })
+  exports.getUserProfileDetails=catchAsyncErrors(async(req,res,next)=>{
+    const id=req.params.id;
+    try {
+      let user=await User.findById(id).select("-password").populate("eventAppliedFor");
+      if(user.universityId){
+        let universityStudent=await University.findById(user.universityId).select("-universityPassword")
+        // console.log(universityStudent.studentsList)
+        if(universityStudent.studentsList.includes(id)){
           return res.status(200).json({status:"success",body:user,university:universityStudent});
         }
       }
@@ -551,6 +575,113 @@ today.setHours(0, 0, 0, 0);
       return next(new ErrorHandler(error.message, error.code || error.statusCode));
     }
   })
+exports.findEventsNearby=catchAsyncErrors(async(req,res,next)=>{
+  const id =new mongoose.Types.ObjectId(req.userData.user.id)
+  const today = new Date();
+today.setHours(0, 0, 0, 0);
+  try {
+    const {longitude,latitude}=req.body.location;
+    const maxDistance=10;
+    let user=await User.findById(id);
+    const events = await Event.find({
+      eventStatus:"upcoming",
+      eventStartDate: { $gte: today }, // Filter for events starting from today or in the future
+      $nor: [
+        { VolunteersIdApplied: user._id },
+        { VolunteersIdAppliedRequested: user._id },
+        { VolunteersIdAppliedRejected: user._id }
+      ]}).populate("universityId")
+      .populate("organizationId");
+
+        const nearbyEvents = events.filter(event => {
+            const distance = calculateDistance(
+                latitude,
+                longitude,
+                event.latitude,
+                event.longitude
+            );
+            return distance <= maxDistance;
+        })
+
+        return res.status(200).json({
+          status:"success",
+          body:nearbyEvents
+        });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.checkIfAlreadyReviewed=catchAsyncErrors(async(req,res,next)=>{
+  let eventId=req.params.eventId;
+  let userId=req.userData.user.id;
+  try {
+    let response=await ReviewEvent.find({
+      eventId:eventId,
+      userId:userId
+    })
+     return res.status(200).json({
+      status:"success",
+      body:response.length>0?true:false
+     });
+    
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.reviewEvent=catchAsyncErrors(async(req,res,next)=>{
+  let eventId=req.params.eventId;
+  let userId=req.userData.user.id;
+  let rating=req.body.rating;
+  try {
+    let event=await Event.findById(eventId);
+    if(event.eventStatus!=="ended"){
+      return next(new ErrorHandler("Event Not Ended Yet",400));
+    }
+    let response=await ReviewEvent.find({
+      userId:userId,
+      eventId:eventId
+    });
+    if(response.length>0){
+      await ReviewEvent.findOneAndUpdate({userId:userId},{
+        rating:rating
+      });
+      return res.status(200).json({
+        status:"success",
+        message:"Rating has been updated"
+      })
+    }
+    let review=new ReviewEvent({
+      userId,
+      eventId,
+      rating
+    })
+    await review.save();
+    return res.status(200).json({
+      status:"success",
+      message:"Event has been rated"
+    }); 
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.getVolunteerCountAndOrganizationCountAndEventCount=catchAsyncErrors(async(req,res,next)=>{
+  try {
+    let organization=await organizationModel.find({});
+    let users=await User.find({});
+    let events=await Event.find({});
+    return res.status(200).json({
+      status:"success",
+      "org":organization.length,
+      "events":events.length,
+      "users":users.length
+    })
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+})
+
 
 
 // async function insertEvent() {

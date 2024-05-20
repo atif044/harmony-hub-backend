@@ -49,6 +49,10 @@ const modal = {
         ref: "Event",
       },
   ],
+  profilePic:{
+    type:String,
+    default:"https://res.cloudinary.com/dc5z2ofbj/image/upload/v1713971862/rxu2kuyegzgrk9obq49w.png"
+  }
 
 };
 module.exports = schema.modelMake("Organization", schema.schemaMake(modal));
