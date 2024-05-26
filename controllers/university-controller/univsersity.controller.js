@@ -10,6 +10,7 @@ const { default: mongoose, Mongoose } = require("mongoose");
 const Event=require('../../models/event/event.model');
 const userModel = require("../../models/user/user.model");
 const { uploadaImageToCloudinary } = require("../../utils/uploadToCloudinary");
+const { sendMail } = require("../../config/emailConfig");
 exports.createUniversityAccount = catchAsyncErrors(async (req, res, next) => {
   const { universityName,universityEmail,universityPassword,campus,country,city } =
     req.body;
@@ -339,11 +340,22 @@ exports.approveEvent=catchAsyncErrors(async(req,res,next)=>{
   const id=req.params.id;
   const uniId=req.userData.user.id;
   try {
-    let university=await University.findOne({_id:uniId});
+    let university=await University.findOne({_id:uniId}).populate("studentsList");
+    const emails=[]
+    university?.studentsList?.map((val)=>{
+        emails.push(val.email.trim())
+    })
+    console.log(emails)
+    if(university.currentCollaboratedEvents.includes(id)){
+      return next(new ErrorHandler("You Have Already Approved this event",400));
+    }
     if(!university.pendingCollaborateEvents.includes(id)){
       return next(new ErrorHandler("You are not allowed for this event",400));
     }
     let index = university.pendingCollaborateEvents.indexOf(id);
+    let event=await Event.findById(id)
+    emails.length >0 && await sendEmail(emails,"URGENT!!",
+    `Good News Students|\n We are collaborating with this event ${event.EventName} helding at ${event.eventLocationName} if you want to join visit the university events on your volunteer portal.`)
 // If the value is found, pop it and push it into the destination array
 if (index !== -1) {
     let poppedValue = university.pendingCollaborateEvents.splice(index, 1)[0];
@@ -351,17 +363,44 @@ if (index !== -1) {
 }
 university.save();
 return res.status(200).json({status:"success",message:"Event Collaborated"});
-
-    
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
 
+  }
+});
+exports.rejectTheEventCollab=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  let eventId=req.params.id;
+  try {
+    let check=await Event.findById(eventId);
+    if(check.eventStatus!=="upcoming"){
+      return next(new ErrorHandler("Event has already started or ended yet",400))
+    }
+    let uni=await University.findByIdAndUpdate(id,{
+      $pull: { currentCollaboratedEvents: eventId },
+      $pull: { pendingCollaboratedEvents: eventId } 
+    })
+
+    let event=await Event.findByIdAndUpdate(eventId,
+      {
+        universityId:null
+      }
+    )
+    return res.status(200).json({
+      status:"success",
+      message:"successfully rejected"
+    })
+
+    
+  } catch (error) {
+       return next(new ErrorHandler(error.message, error.code || error.statusCode));
+ 
   }
 })
 exports.getAllCollaboratedEvents=catchAsyncErrors(async(req,res,next)=>{
   let userId=req.userData.user.id;
   try {
-    let UniversityEvents=await University.findById(userId).populate('currentCollaboratedEvents');
+    let UniversityEvents=await University.findById(userId).populate('currentCollaboratedEvents').populate('pastCollaboratedEvents');
     return res.status(200).json({status:"success",message:"All collaborated Events",body:UniversityEvents});
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
@@ -598,4 +637,6 @@ exports.getAllStudents=catchAsyncErrors(async(req,res,next)=>{
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
-})
+});
+
+

@@ -328,7 +328,7 @@ exports.getUniversityProfile=catchAsyncErrors(async(req,res,next)=>{
 });
 exports.getAllRequests=catchAsyncErrors(async(req,res,next)=>{
   try {
-    let response=await requestCertificateModel.find().populate("userId",["fullName","email"]).populate({
+    let response=await requestCertificateModel.find({status:"pending"}).populate("userId",["fullName","email"]).populate({
       path:"eventId",
     select: ['EventName'],
     populate: {

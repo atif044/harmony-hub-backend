@@ -15,9 +15,10 @@ app.use(cookieParser());
 // app.use(ExpressMongoSanitize())
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000" ||'http://192.168.100.241:3000'],
     credentials: true,
-  })
+  },
+)
 );
 app.use(express.json());
 // app.use(sanitizeInput)

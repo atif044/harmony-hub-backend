@@ -15,11 +15,11 @@ const University=require('../../models/university/university.model');
 const {calculateDistance}=require('../../utils/eventsByLocation');
 const ReviewEvent=require('../../models/review/review.event.model');
 const organizationModel = require('../../models/organization/organization.model');
-
+const reviewVolunteer=require('../../models/review/review.volunteer.model')
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth,enrollmentNo}=req.body;
-    console.log(req.body)
+    console.log(req.files)
     let response= await User.findOne({email:email});    
     if(response){
       return next(new ErrorHandler("An Account with this email already exists",400));
@@ -27,7 +27,8 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
      let profilePic=await uploadaImageToCloudinary(req.files[0].buffer);
      let cnicFront=await uploadaImageToCloudinary(req.files[2].buffer);
      let cnicBack=await uploadaImageToCloudinary(req.files[1].buffer);
-     let studentCard=await uploadaImageToCloudinary(req.files[3]?.buffer);
+     let studentCard=null
+     req.files[3]?.buffer  && (studentCard=await uploadaImageToCloudinary(req.files[3]?.buffer))
     let hashedPassword=await bcrypt.hash(password,10);
     if(hashedPassword){
       const body=req.body;
@@ -37,12 +38,14 @@ exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
           profilePic:profilePic.secure_url,
           cnicBack:cnicBack.secure_url,
           cnicFront:cnicFront.secure_url,
-          studentCardPic:studentCard.secure_url||"",
+          studentCardPic:studentCard?.secure_url||"",
           password:hashedPassword,
           enrollmentNo:enrollmentNo||"",
           email,
           gender:gender,
-          fullName,country,city,universityId,dateOfBirth
+          fullName,country,city,
+          universityId:universityId||null,
+          dateOfBirth
         }
       )
     await account.save();
@@ -680,10 +683,150 @@ exports.getVolunteerCountAndOrganizationCountAndEventCount=catchAsyncErrors(asyn
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
+});
+
+exports.getRating=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id;
+  try {
+    const counts = await reviewVolunteer.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(id) } },
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = counts.reduce((acc, { _id, count }) => {
+      acc[_id] = count;
+      return acc;
+    }, { p: 0, n: 0 });
+    let rating
+    if((result.p+result.n)!==0){
+      rating=((result.p)/(result.p+result.n))*5.0;
+    }
+    else{
+      rating=5
+    }
+    res.status(200).json({status:"success",rating:rating})    
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+exports.getRatingPublic=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  try {
+    const response=await reviewVolunteer.find({userId:id});
+    console.log(response) 
+    const counts = await reviewVolunteer.aggregate([
+      { $match: { userId: new mongoose.Types.ObjectId(id) } },
+      {
+        $group: {
+          _id: '$rating',
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    const result = counts.reduce((acc, { _id, count }) => {
+      acc[_id] = count;
+      return acc;
+    }, { p: 0, n: 0 });
+    let rating
+    if((result.p+result.n)!==0){
+      rating=((result.p)/(result.p+result.n))*5.0;
+    }
+    else{
+      rating=5
+    }
+    res.status(200).json({status:"success",rating:rating})    
+
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.addProfilePic=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.userData.user.id
+  try {
+    if(!req.file){
+      return next(new ErrorHandler("No Image Attached",400));
+    }
+    let data=await uploadaImageToCloudinary(req.file.buffer);
+    let update=await User.findByIdAndUpdate(id,{
+      profilePic:data.secure_url
+    })
+    return res.status(200).json({
+      status:"success",
+      message:"Profile Pic updated successfully"
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+
+exports.getAllUniversityEvents=catchAsyncErrors(async(req,res,next)=>{
+  const id=req.userData.user.id;
+  try {
+    let uni=await University.find({
+      studentsList: { $in: [id] }
+    })
+    if(!uni){
+      return next(new ErrorHandler("You are not the part of university"));
+    }
+    let user=await User.findById(id);
+    if(user.universityId==null){
+      return next(new ErrorHandler("You are not the part of university"));
+    }
+    console.log(user)
+    let university=await University.findById(user.universityId).populate({
+      path:'currentCollaboratedEvents',
+      match: { eventStatus: 'upcoming' }
+    });
+    return res.status(200).json({
+      status:"success",
+      body:university
+    });
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
+exports.withdrawfromEvents=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  let userId=req.userData.user.id;
+  try {
+    let eventCheck=await Event.findById(id);
+    if(eventCheck.eventStatus!=="upcoming"){
+      return next(new ErrorHandler("Event is started cant withdraw now",400))
+    }
+
+    let response=await User.findByIdAndUpdate(userId,
+      {
+        $pull: { eventAppliedFor: id },
+      $pull: { eventAppliedForRequested: id } 
+      }
+    )
+    let event =await Event.findByIdAndUpdate(id,{
+      $pull: { VolunteersIdApplied: userId },
+      $pull: { VolunteersIdAppliedRequested: userId }, 
+      $pull: { VolunteersIdAppliedRejected: userId } 
+    })
+    return res.status(200).json({
+      status:"success",
+      message:"Withdraw success"
+    })
+    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode)); 
+  }
 })
-
-
-
 // async function insertEvent() {
 //   try {
 //     // Create a new event instance using the provided data

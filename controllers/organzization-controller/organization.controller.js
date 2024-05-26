@@ -372,11 +372,9 @@ exports.allEventsStarted=catchAsyncErrors(async(req,res,next)=>{
 exports.allEventsEnded=catchAsyncErrors(async(req,res,next)=>{
   const id=req.userData.user.id;
   try{
-    let events=await Organization.findOne({_id:id}).populate({
-      path: 'currentOrganizationEvents',
-      match: { eventStatus: 'ended' }});
-      console.log(events)
-      return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
+    let events=await Organization.findOne({_id:id}).populate('pastOrganizationEvents')
+    console.log(events,"ddk")
+      return res.status(200).json({status:"success",body:events.pastOrganizationEvents});
   }
   catch(error){
         return next(new ErrorHandler(error.message, error.code || error.statusCode));
@@ -919,7 +917,6 @@ exports.getMyPublicProfile=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 })
-
 exports.addBio=catchAsyncErrors(async(req,res,next)=>{
   let id=req.userData.user.id;
   let about=req.body.about;
@@ -937,7 +934,6 @@ exports.addBio=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
 });
-
 exports.addProfilePic=catchAsyncErrors(async(req,res,next)=>{
   let id=req.userData.user.id
   try {
@@ -956,4 +952,47 @@ exports.addProfilePic=catchAsyncErrors(async(req,res,next)=>{
   } catch (error) {
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
   }
-})
+});
+exports.deleteEvent=catchAsyncErrors(async(req,res,next)=>{
+  let id=req.params.id;
+  let userId=req.userData.user.id;
+  try {
+    let event=await Event.findById(id);
+    const userIds = [
+      ...event.VolunteersIdApplied,
+      ...event.VolunteersIdAppliedRequested,
+      ...event.VolunteersIdAppliedRejected
+    ];
+    const uniqueUserIds = [...new Set(userIds.map(id => id.toString()))];
+
+    if(event.organizationId==id){
+      return next(new ErrorHandler("You are not the owner for this event",400))
+    }
+     await Event.findByIdAndDelete(id);
+     await Organization.findByIdAndUpdate(userId,
+      { $pull: { currentOrganizationEvents: id } 
+    },
+     )
+     await University.findByIdAndUpdate(event.universityId,     
+       {
+      $pull: { currentCollaboratedEvents: id },
+      $pull: { pendingCollaboratedEvents: id } 
+     });
+     await User.updateMany(
+      { _id: { $in: uniqueUserIds } },
+      {
+        $pull: {
+          eventAppliedFor: id,
+          eventAppliedForRequested: id
+        }
+      }
+    );
+    return res.status(200).json({
+      status:"success",
+      message:"Event Deleted Successfully"
+    });    
+  } catch (error) {
+    return next(new ErrorHandler(error.message, error.code || error.statusCode));
+  }
+});
+
