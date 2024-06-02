@@ -18,7 +18,7 @@ const catchAsyncErrors = require("../config/catchAsyncErrors");
 router.route("/register").post(checkIfLoggedIn,upload.array("photos",4),userController.createUserAccount);
 router.route("/login").post(checkIfLoggedIn,userController.loginUserAccount);
 //===============================USER ACTIONS
-router.route('/verifyEmail/:token').post(userController.verifyEmailToken);
+router.route('/verifyEmail/:token').post(verifyJwt,userController.verifyEmailToken);
 router.route('/resendEmail').post(verifyJwt,userController.resendOTP);
 router.route("/getAllEvents").get(verifyJwt,userController.findAllEventsInCountry);
 router.route("/getEvent/:id").get(verifyJwt,userController.eventDetails);
