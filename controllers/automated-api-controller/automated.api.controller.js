@@ -14,7 +14,6 @@ exports.changeEventsStatus=catchAsyncErrors(
             // Update events whose start date is greater than or equal to today's date
             await Event.updateMany({ eventStartDate: { $lte: todaysDate },eventStatus:"upcoming" }, { $set: { eventStatus: 'started' } });
         } catch (error) {
-            console.log(error);
         }
     }
 )
@@ -41,13 +40,11 @@ exports.changeEventToEnd = catchAsyncErrors(async (req, res, next) => {
         }));
         await Event.updateMany({ _id: { $in: finalizedIds },eventStatus:"started" }, { $set: { eventStatus: 'ended' } });
     } catch (error) {
-        console.log(error);
     }
 });
 exports.pullFromCurrentEventsAndPushToPastEvents = catchAsyncErrors(async (req, res, next) => {
     try {
         let response = await Event.find({eventStatus:"ended"});
-        console.log("Response:", response); // Log the response to check if it contains the expected documents
 
         let universityIds = [];
         let organizationIds = [];
@@ -56,12 +53,10 @@ exports.pullFromCurrentEventsAndPushToPastEvents = catchAsyncErrors(async (req, 
         response.forEach((record) => {
             eventId.push(record._id);
             organizationIds.push(record.organizationId);
-            console.log("OrganizationId:", record.organizationId); // Log the organizationId to check if it's being fetched correctly
             if (record.universityId != null) {
                 universityIds.push(record.universityId);
             }
         });
-        console.log("Ids:", universityIds, organizationIds, eventId); // Log the arrays to check if they contain the expected data
         const updatedOrganizations = await Organization.updateMany(
             { 
                 _id: { $in: organizationIds }, // Filter by organizationIds

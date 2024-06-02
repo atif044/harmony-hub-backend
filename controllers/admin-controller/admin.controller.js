@@ -389,13 +389,11 @@ exports.changeRequest=catchAsyncErrors(
       },{
         new:true
       });
-      console.log(response)
       let event=await Event.findById(eventId);
       const updatedUser = await User.findByIdAndUpdate(
         userId, 
         { $inc: { cspHours: Number(event.eventDurationInDays) } }
       );   
-      console.log(123)
          res.status(200).json({
         status:"success",
         message:"Certificate Added"

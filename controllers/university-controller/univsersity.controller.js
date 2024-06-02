@@ -228,7 +228,6 @@ exports.loginUniversityAccount = catchAsyncErrors(async (req, res, next) => {
       isVerified:response[0].isVerified
     });
   } catch (error) {
-    console.log(error)
     return next(
       new ErrorHandler(error.message, error.code || error.statusCode)
     );
@@ -269,7 +268,6 @@ exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
       .status(200)
       .json({ status: "success", message: "Email Verified Successful",body:"true" });
   } catch (error) {
-    console.log(error)
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
   }
 });
@@ -295,7 +293,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
       await sendEmail(user.universityEmail,"Email Verification",`Your OTP is:${emailVerificationToken}`)
       return res.status(200).json({status:"success",message:"A Email has send to you. Please verify Email"})    
   } catch (error) {
-    console.log(error)
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
 
   }
@@ -345,7 +342,6 @@ exports.approveEvent=catchAsyncErrors(async(req,res,next)=>{
     university?.studentsList?.map((val)=>{
         emails.push(val.email.trim())
     })
-    console.log(emails)
     if(university.currentCollaboratedEvents.includes(id)){
       return next(new ErrorHandler("You Have Already Approved this event",400));
     }
@@ -539,7 +535,6 @@ exports.rejectToApprove=catchAsyncErrors(async(req,res,next)=>{
     if(university?.studentsList?.includes(student._id)){
       return next(new ErrorHandler("Already Approved",400));
     }
-    console.log(university.rejectedStudentList)
     if(!university?.rejectedStudentList?.includes(student._id)){
       return next(new ErrorHandler("This User is not rejected yet",400));
     }

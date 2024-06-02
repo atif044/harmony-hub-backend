@@ -19,7 +19,6 @@ const reviewVolunteer=require('../../models/review/review.volunteer.model')
 exports.createUserAccount=catchAsyncErrors(async(req,res,next)=>{
   try {
     const {email,password,gender,fullName,country,city,universityId,dateOfBirth,enrollmentNo}=req.body;
-    console.log(req.files)
     let response= await User.findOne({email:email});    
     if(response){
       return next(new ErrorHandler("An Account with this email already exists",400));
@@ -210,7 +209,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
     const {email,password}=req.body;
     try {
       let response=await User.findOne({email});
-      console.log(response)
       if(!response){
         return next(new ErrorHandler("Email or Password is incorrect",400));
       }
@@ -298,7 +296,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
 </html>`
       );
       }
-    console.log("hogya login")
     return res.status(200).json({
       status: "success",
       message: "Logged in successfully",
@@ -328,7 +325,6 @@ today.setHours(0, 0, 0, 0);
         })
         .populate("universityId")
         .populate("organizationId");
-        console.log(events)
         // let events=await Event.find({country:user.country}).populate("universityId").populate("organizationId");
         return res.status(200).json({
           status:"success",
@@ -428,7 +424,6 @@ today.setHours(0, 0, 0, 0);
     attendance.forEach(record => {
   // Iterate over users array of each record
         record.users.forEach(user => {
-          console.log( user.status == 'p')
         if (user.user==id &&user.status == 'p') {
             ++presentCount;
           }  
@@ -465,7 +460,6 @@ today.setHours(0, 0, 0, 0);
       let absentCount = 0;
     attendance.forEach(record => {
         record.users.forEach(user => {
-          console.log( user.status == 'p')
         if (user.user==id &&user.status == 'p') {
             ++presentCount;
           }  
@@ -532,7 +526,6 @@ today.setHours(0, 0, 0, 0);
       let user=await User.findById(id).select("-password").populate("eventAppliedFor");
       if(user.universityId){
         let universityStudent=await University.findById(user.universityId).select("-universityPassword")
-        // console.log(universityStudent.studentsList)
         if(universityStudent?.studentsList?.includes(id)){
           return res.status(200).json({status:"success",body:user,university:universityStudent});
         }
@@ -549,7 +542,6 @@ today.setHours(0, 0, 0, 0);
       let user=await User.findById(id).select("-password").populate("eventAppliedFor");
       if(user.universityId){
         let universityStudent=await University.findById(user.universityId).select("-universityPassword")
-        // console.log(universityStudent.studentsList)
         if(universityStudent.studentsList.includes(id)){
           return res.status(200).json({status:"success",body:user,university:universityStudent});
         }
@@ -720,7 +712,6 @@ exports.getRatingPublic=catchAsyncErrors(async(req,res,next)=>{
   let id=req.params.id;
   try {
     const response=await reviewVolunteer.find({userId:id});
-    console.log(response) 
     const counts = await reviewVolunteer.aggregate([
       { $match: { userId: new mongoose.Types.ObjectId(id) } },
       {
@@ -784,7 +775,6 @@ exports.getAllUniversityEvents=catchAsyncErrors(async(req,res,next)=>{
     if(user.universityId==null){
       return next(new ErrorHandler("You are not the part of university"));
     }
-    console.log(user)
     let university=await University.findById(user.universityId).populate({
       path:'currentCollaboratedEvents',
       match: { eventStatus: 'upcoming' }
@@ -827,122 +817,3 @@ exports.withdrawfromEvents=catchAsyncErrors(async(req,res,next)=>{
     return next(new ErrorHandler(error.message, error.code || error.statusCode)); 
   }
 })
-// async function insertEvent() {
-//   try {
-//     // Create a new event instance using the provided data
-//     const newEvent = new Event({
-//       EventName: "HIIIII",
-//       EventDescription: "BYYEEE",
-//       VolunteersRequired: 12,
-//       VolunteersCount: 10,
-//      longitude:73.084488,
-//      latitude: 33.738045,
-//     eventDurationInDays: eventData.eventDurationInDays
-//     });
-
-//     // Save the new event to the database
-//     const savedEvent = await newEvent.save();
-//     console.log("Event saved successfully:", savedEvent);
-//     return savedEvent;
-//   } catch (error) {
-//     console.error("Error inserting event:", error);
-//     throw error;
-//   }
-// }
-
-// // Example usage:
-// const eventData = {
-//   EventName: "Example Event",
-//   EventDescription: "This is an example event",
-//   VolunteersRequired: 10,
-//   VolunteersCount: 0,
-//   VolunteersIdApplied: [],
-//   eventLocationLink: "http://example.com",
-//   // Latitude of the event location
-//   eventDurationInDays: "3 days"
-// };
-
-// insertEvent();
-
-// // async function fetchData(){
-// //   try {
-// //     let res=await Event.find();
-   
-// //     let apiResponse=await fetch('https://graphhopper.com/api/1/route?key=29e41d10-adc4-4e1b-97ba-a9e4f5cb473d',{
-// //       "points": [
-// //         [
-// //           res.longitude,
-// //           res.latitude
-    
-// //         ],
-// //         [
-// //           74.2913491,
-// //           31.4465361
-// //         ]
-// //       ],
-// //       "snap_preventions": [
-// //         "motorway",
-// //         "ferry",
-// //         "tunnel"
-// //       ],
-// //       "details": [
-// //         "road_class",
-// //         "surface"
-// //       ],
-// //       "profile": "car",
-// //       "locale": "en",
-// //       "instructions": true,
-// //       "calc_points": true,
-// //       "points_encoded": false
-// //     })
-// //     console.log(apiResponse)
-// //     return res.json("fdkmk")
-// //   } catch (error) {
-    
-// //   }
-// // }
-// // fetchData()
-
-
-// async function futchData(){
-//   try {
-//     let res=await Event.find();
-//     const url = 'https://graphhopper.com/api/1/route?key=29e41d10-adc4-4e1b-97ba-a9e4f5cb473d';
-
-// const data = {
-//   elevation: false,
-//   points: [[
-//     res[0].longitude,
-//     res[0].latitude
-
-//   ],
-//   [
-//     74.2913491,
-//     31.4465361
-//   ]],
-//   profile: 'car'
-// };
-
-// fetch(url, {
-//   method: 'POST',
-//   headers: {
-//     'Content-Type': 'application/json'
-//   },
-//   body: JSON.stringify(data)
-// })
-// .then(response => response.json())
-// .then(data => {
-//   console.log('Response:', data.paths[0].distance);
-
-//   if(data.paths[0].distance>10000){
-//     console.log("zyada distance hy")
-//   }
-// })
-// .catch(error => {
-//   console.error('Error:', error);
-// });
-//   } catch (error) {
-//     console.log(error)
-//   }
-// }
-// futchData()

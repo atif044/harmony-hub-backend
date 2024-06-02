@@ -233,7 +233,6 @@ exports.loginOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
       isVerified:response[0].isVerified
     });
   } catch (error) {
-    console.log(error)
     return next(
       new ErrorHandler(error.message, error.code || error.statusCode)
     );
@@ -251,7 +250,6 @@ exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
       email:email
       
     });
-    console.log(validToken)
     if (!validToken) {
       return next(new ErrorHandler("Invalid or Expired Token",400))
     }
@@ -275,7 +273,6 @@ exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
       .status(200)
       .json({ status: "success", message: "Email Verified Successful",body:"true" });
   } catch (error) {
-    console.log(error)
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
   }
 });
@@ -283,7 +280,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
   const userId=req.userData.user.id;
   try {
     let user=await Organization.findById(userId).select("organizationEmail").select("isVerified");
-    console.log(user)
     if(!user){
       return next(new ErrorHandler("User Not Found",400));
     }
@@ -302,7 +298,6 @@ exports.resendOTP=catchAsyncErrors(async(req,res,next)=>{
       await sendEmail(user.organizationEmail,"Email Verification",`Your OTP is:${emailVerificationToken}`)
       return res.status(200).json({status:"success",message:"A Email has send to you. Please verify Email"})    
   } catch (error) {
-    console.log(error)
     return next(new ErrorHandler(error.message, error.code || error.statusCode))
 
   }
@@ -349,7 +344,6 @@ exports.allEvents=catchAsyncErrors(async(req,res,next)=>{
     let events=await Organization.findOne({_id:id}).populate({
       path: 'currentOrganizationEvents',
       match: { eventStatus: 'upcoming' }});
-      console.log(events)
       return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
   }
   catch(error){
@@ -362,7 +356,6 @@ exports.allEventsStarted=catchAsyncErrors(async(req,res,next)=>{
     let events=await Organization.findOne({_id:id}).populate({
       path: 'currentOrganizationEvents',
       match: { eventStatus: 'started' }});
-      console.log(events)
       return res.status(200).json({status:"success",body:events.currentOrganizationEvents});
   }
   catch(error){
@@ -373,7 +366,6 @@ exports.allEventsEnded=catchAsyncErrors(async(req,res,next)=>{
   const id=req.userData.user.id;
   try{
     let events=await Organization.findOne({_id:id}).populate('pastOrganizationEvents')
-    console.log(events,"ddk")
       return res.status(200).json({status:"success",body:events.pastOrganizationEvents});
   }
   catch(error){
@@ -445,7 +437,6 @@ exports.editEventDetails=catchAsyncErrors(async(req,res,next)=>{
 
     return res.status(201).json({status:"success",message:"Event Updated Successfully"});
   } catch (error) {
-    console.log(error)
     return next(new ErrorHandler(error.message, error.code || error.statusCode));
 
   }
@@ -666,7 +657,6 @@ exports.markAttendance=catchAsyncErrors(async(req,res,next)=>{
     if(formattedDateInput<evntStart){
       return next(new ErrorHandler("Date is lesser than event's start Date",400));
     }
-    console.log(todayDateLatest<formattedDateInput)
     if((formattedDateInput<=evntEnd&&formattedDateInput>=evntStart)&&todayDateLatest<formattedDateInput){
       return next(new ErrorHandler("Attendance can only be marked on the same date",400));
     }

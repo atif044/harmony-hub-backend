@@ -15,7 +15,6 @@ async function sendEmail(to, subject, text) {
 
   }
   catch(error){
-    console.log(error)
     throw new Error("An Error Occurred",400)
   }
 }
