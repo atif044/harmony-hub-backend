@@ -17,7 +17,7 @@ app.use(cookieParser());
 // app.use(ExpressMongoSanitize())
 app.use(
   cors({
-    origin: ['0.0.0.0'],
+    origin: ['https://harmony-hub-frontend-2.vercel.app'],
     credentials: true,
   },
 )
