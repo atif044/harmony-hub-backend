@@ -45,12 +45,14 @@ exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
       };
       const authToken = generateJwtOrganization(data);
       res.cookie("harmony-hub-organization", authToken, {
-        secure: false,
+        secure:true, 
+        httpOnly:true
         maxAge: 24 * 60 * 60 * 1000,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
       res.cookie("isVerified", account.isVerified, {
-        secure: false,
+        secure:true, 
+        httpOnly:true,
         maxAge: 24 * 60 * 60 * 1000,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
