@@ -46,13 +46,13 @@ exports.createOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
       const authToken = generateJwtOrganization(data);
       res.cookie("harmony-hub-organization", authToken, {
         secure:true, 
-        httpOnly:true,
+       
         maxAge: 24 * 60 * 60 * 1000,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
       res.cookie("isVerified", account.isVerified, {
         secure:true, 
-        httpOnly:true,
+       
         maxAge: 24 * 60 * 60 * 1000,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
@@ -156,13 +156,13 @@ exports.loginOrganizationAccount = catchAsyncErrors(async (req, res, next) => {
     const authToken = generateJwtOrganization(data);
     res.cookie("harmony-hub-organization", authToken, {
       secure:true, 
-        httpOnly:true,
+      
       maxAge: 24 * 60 * 60 * 1000,
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
       res.cookie("isVerified", response[0].isVerified, {
         secure:true, 
-        httpOnly:true,
+       
         maxAge: 24 * 60 * 60 * 1000,
         expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
       });
@@ -269,7 +269,7 @@ exports.verifyEmailToken=catchAsyncErrors(async(req,res,next)=>{
     }
     await Token.findByIdAndDelete(validToken._id);
     res.cookie("isVerified", true, {
-      secure: false,
+      secure: true,
       maxAge: 24 * 60 * 60 * 1000,
       expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
     });
